@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, LayoutDashboard, Settings, Mail, Menu, X } from 'lucide-react'
+import { Home, LayoutDashboard, Settings, Mail, Menu, X, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 const menuItems = [
@@ -15,6 +15,12 @@ const menuItems = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard
+  },
+  {
+    name: 'React 19 Demo',
+    href: '/react19-demo',
+    icon: Sparkles,
+    badge: 'New'
   },
   {
     name: 'Configuration',
@@ -71,7 +77,7 @@ export default function Sidebar() {
                   onClick={() => setIsOpen(false)}
                   className={`
                     flex items-center gap-3 px-4 py-3 rounded-lg
-                    transition-all duration-200
+                    transition-all duration-200 relative
                     ${isActive
                       ? 'bg-blue-600 text-white shadow-md'
                       : 'text-gray-700 hover:bg-gray-100'
@@ -80,6 +86,11 @@ export default function Sidebar() {
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.name}</span>
+                  {item.badge && (
+                    <span className="ml-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -87,11 +98,17 @@ export default function Sidebar() {
 
           {/* Footer */}
           <div className="p-4 border-t border-gray-200">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">Need help?</p>
-              <Link href="/contact">
-                <button className="text-sm text-blue-600 font-medium hover:text-blue-700">
-                  Contact Support →
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                <p className="text-sm font-semibold text-purple-900">React 19 Features!</p>
+              </div>
+              <p className="text-xs text-gray-600 mb-2">
+                Check out the latest React 19 hooks in action
+              </p>
+              <Link href="/react19-demo">
+                <button className="text-xs text-purple-600 font-medium hover:text-purple-700">
+                  Explore Demo →
                 </button>
               </Link>
             </div>
