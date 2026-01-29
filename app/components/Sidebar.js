@@ -1,128 +1,161 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Home, LayoutDashboard, Settings, Mail, Menu, X, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  FaHome,
+  FaClipboardList,
+  FaNetworkWired,
+  FaChevronDown,
+  FaChevronRight,
+} from "react-icons/fa";
+import { MdPhoneInTalk, MdDashboard } from "react-icons/md";
 
-const menuItems = [
-  {
-    name: 'Home',
-    href: '/',
-    icon: Home
-  },
-  {
-    name: 'Dashboard',
-    href: '/dashboard',
-    icon: LayoutDashboard
-  },
-  {
-    name: 'React 19 Demo',
-    href: '/react19-demo',
-    icon: Sparkles,
-    badge: 'New'
-  },
-  {
-    name: 'Configuration',
-    href: '/configuration',
-    icon: Settings
-  },
-  {
-    name: 'Contact',
-    href: '/contact',
-    icon: Mail
-  }
-]
+const Sidebar = () => {
+  const pathname = usePathname();
+  const [expandedMenu, setExpandedMenu] = useState(null);
 
-export default function Sidebar() {
-  const pathname = usePathname()
-  const [isOpen, setIsOpen] = useState(false)
+  const toggleMenu = (menu) => {
+    setExpandedMenu(expandedMenu === menu ? null : menu);
+  };
+
+  const isActive = (path) => pathname === path;
+
+  const menuItems = [
+    {
+      name: "Dashboard",
+      href: "/dashboard",
+      icon: MdDashboard,
+    },
+    {
+      name: "OTN",
+      icon: FaNetworkWired,
+      submenu: [
+        { name: "OTN Link Status", href: "/otnroutestatus" },
+        { name: "OTN Route Details", href: "/otn-route-details" },
+        { name: "OTN Services Status", href: "/otn-service-failure-details" },
+        { name: "OTN All Service Data", href: "/OTNALLSERVICESDETAIL" },
+      ],
+    },
+    {
+      name: "CPAN",
+      icon: FaNetworkWired,
+      submenu: [
+        { name: "CPAN Link Status", href: "/cpanlinkstatus" },
+        { name: "CPAN Link Detail", href: "/cpanlinkdetail" },
+      ],
+    },
+    {
+      name: "MAAN",
+      icon: FaNetworkWired,
+      submenu: [
+        { name: "MAAN Node Status", href: "/MAANPING" },
+        { name: "OTN Port Status", href: "/otn-port-status" },
+        { name: "Project Topology", href: "/project-topology" },
+      ],
+    },
+    {
+      name: "Reports",
+      href: "/reports",
+      icon: FaClipboardList,
+    },
+    {
+      name: "Contact",
+      href: "/contact",
+      icon: MdPhoneInTalk,
+    },
+  ];
 
   return (
-    <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-blue-600 text-white p-2 rounded-lg shadow-lg"
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed lg:static inset-y-0 left-0 z-40
-          w-64 bg-white shadow-xl
-          transform transition-transform duration-300 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-blue-600">CNTX Portal</h1>
-            <p className="text-sm text-gray-500 mt-1">Context Transfer</p>
+    <aside className="w-64 bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl hidden lg:block">
+      {/* Logo Section */}
+      <div className="p-6 border-b border-slate-700">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <FaNetworkWired className="text-white text-xl" />
           </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
-            {menuItems.map((item) => {
-              const Icon = item.icon
-              const isActive = pathname === item.href
-              
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg
-                    transition-all duration-200 relative
-                    ${isActive
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100'
-                    }
-                  `}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
-                  {item.badge && (
-                    <span className="ml-auto bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              )
-            })}
-          </nav>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg border border-purple-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                <p className="text-sm font-semibold text-purple-900">React 19 Features!</p>
-              </div>
-              <p className="text-xs text-gray-600 mb-2">
-                Check out the latest React 19 hooks in action
-              </p>
-              <Link href="/react19-demo">
-                <button className="text-xs text-purple-600 font-medium hover:text-purple-700">
-                  Explore Demo →
-                </button>
-              </Link>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              CNTX Portal
+            </h1>
+            <p className="text-xs text-slate-400">Network Monitoring</p>
           </div>
         </div>
-      </aside>
+      </div>
 
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-    </>
-  )
-}
+      {/* Navigation */}
+      <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-180px)]">
+        {menuItems.map((item, index) => (
+          <div key={index}>
+            {item.submenu ? (
+              // Menu with submenu
+              <div>
+                <button
+                  onClick={() => toggleMenu(item.name)}
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                    expandedMenu === item.name
+                      ? "bg-slate-700 text-white"
+                      : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <item.icon className="text-lg" />
+                    <span className="font-medium">{item.name}</span>
+                  </div>
+                  {expandedMenu === item.name ? (
+                    <FaChevronDown className="text-sm" />
+                  ) : (
+                    <FaChevronRight className="text-sm" />
+                  )}
+                </button>
+
+                {/* Submenu */}
+                {expandedMenu === item.name && (
+                  <div className="mt-2 ml-4 space-y-1 border-l-2 border-slate-700 pl-4">
+                    {item.submenu.map((subitem, subindex) => (
+                      <Link
+                        key={subindex}
+                        href={subitem.href}
+                        className={`block px-4 py-2 rounded-lg text-sm transition-all duration-200 ${
+                          isActive(subitem.href)
+                            ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
+                            : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                        }`}
+                      >
+                        {subitem.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Simple menu item
+              <Link
+                href={item.href}
+                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  isActive(item.href)
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg"
+                    : "text-slate-300 hover:bg-slate-700/50 hover:text-white"
+                }`}
+              >
+                <item.icon className="text-lg" />
+                <span className="font-medium">{item.name}</span>
+              </Link>
+            )}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 bg-slate-900">
+        <div className="text-center">
+          <p className="text-xs text-slate-400">Version 1.0.0</p>
+          <p className="text-xs text-slate-500 mt-1">© 2024 FMS Pathankot</p>
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;
