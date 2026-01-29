@@ -2,22 +2,37 @@
 
 <div align="center">
 
-![Next.js](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)
-![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.3-38B2AC?style=for-the-badge&logo=tailwind-css)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-**Modern context transfer portal built with Next.js 14 and Tailwind CSS**
+**Modern context transfer portal built with Next.js 15 and React 19**
 
-[Live Demo](#) • [Documentation](./SETUP.md) • [Report Bug](#) • [Request Feature](#)
+[Live Demo](#) • [Documentation](./SETUP.md) • [React 19 Guide](./REACT19_HOOKS_GUIDE.md) • [Report Bug](#)
 
 </div>
+
+---
+
+## 🎉 **NEW: React 19 Features!**
+
+This project now uses **React 19** with all the latest hooks:
+
+- ✨ **useOptimistic** - Optimistic UI updates
+- ✨ **useFormStatus** - Automatic form state
+- ✨ **useActionState** - Server action management
+- ✨ **use** - Promise & context reading
+- ✨ **Server Actions** - Direct server functions
+
+👉 **[Check out the React 19 Demo Page](/react19-demo)** to see these hooks in action!
 
 ---
 
 ## 📋 विषय सूची (Table of Contents)
 
 - [परिचय (Introduction)](#-परिचय-introduction)
+- [React 19 Features](#-react-19-features)
 - [फीचर्स (Features)](#-फीचर्स-features)
 - [स्क्रीनशॉट्स (Screenshots)](#-स्क्रीनशॉट्स-screenshots)
 - [इंस्टॉलेशन (Installation)](#-इंस्टॉलेशन-installation)
@@ -30,13 +45,88 @@
 
 ## 🎯 परिचय (Introduction)
 
-**CNTX Portal** एक modern, responsive web application है जो Next.js 14 और Tailwind CSS के साथ बनाया गया है। यह portal context transfer और data management के लिए एक comprehensive solution प्रदान करता है।
+**CNTX Portal** एक modern, responsive web application है जो **Next.js 15** और **React 19** के साथ बनाया गया है। यह portal context transfer और data management के लिए एक comprehensive solution प्रदान करता है।
 
 ### मुख्य उद्देश्य (Main Objectives)
 - ⚡ Fast और efficient data transfer
 - 🔒 Secure और reliable operations
 - 🎨 Modern और user-friendly interface
 - 📱 Fully responsive design
+- ✨ **Latest React 19 hooks implementation**
+
+---
+
+## ✨ React 19 Features
+
+### 🎯 Implemented Hooks
+
+#### 1. **useOptimistic Hook**
+Instant UI updates without waiting for server response.
+
+```javascript
+const [optimisticState, addOptimistic] = useOptimistic(
+  state,
+  (currentState, optimisticValue) => {
+    return [...currentState, optimisticValue]
+  }
+)
+```
+
+**Use Cases:**
+- ✅ Like/Unlike buttons
+- ✅ Adding to cart
+- ✅ Sending messages
+- ✅ Toggling settings
+
+#### 2. **useFormStatus Hook**
+Automatic form submission status tracking.
+
+```javascript
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <button disabled={pending}>
+      {pending ? 'Submitting...' : 'Submit'}
+    </button>
+  )
+}
+```
+
+**Benefits:**
+- ✅ No manual loading state
+- ✅ Automatic disable on submit
+- ✅ Reusable components
+
+#### 3. **useActionState Hook**
+Server action state management with built-in error handling.
+
+```javascript
+const [state, formAction] = useActionState(
+  serverAction,
+  initialState
+)
+```
+
+**Features:**
+- ✅ Automatic error handling
+- ✅ Success/failure states
+- ✅ Progressive enhancement
+
+#### 4. **use Hook**
+Read promises and context directly.
+
+```javascript
+const data = use(promise)
+const value = use(Context)
+```
+
+**Advantages:**
+- ✅ Simpler syntax
+- ✅ Can use in conditions
+- ✅ Better performance
+
+### 📚 Learn More
+Check out our comprehensive [React 19 Hooks Guide](./REACT19_HOOKS_GUIDE.md) for detailed examples and best practices!
 
 ---
 
@@ -49,14 +139,25 @@
 - Smooth animations and transitions
 
 ### 📊 Dashboard
-- **Stats Cards**: Real-time statistics display
-  - Total Users
-  - Active Sessions
-  - Configurations
-  - Growth Rate
-- **Quick Actions**: Easy access to main features
-- **Recent Activity**: Track latest updates
-- Responsive grid layout
+- **4 Stats Cards:**
+  - Total Users (1,234)
+  - Active Sessions (56)
+  - Configurations (89)
+  - Growth Rate (34%)
+- **3 Quick Action Cards:**
+  - Configuration
+  - Services
+  - Contact
+- Recent Activity timeline
+
+### 🎨 **NEW: React 19 Demo Page**
+- **Live Examples** of all React 19 hooks
+- **Interactive Demos:**
+  - Optimistic UI updates
+  - Form status tracking
+  - Server actions
+- **Code Examples** with explanations
+- **Best Practices** guide
 
 ### ⚙️ Configuration
 - Comprehensive settings form
@@ -92,6 +193,7 @@
 - Active route highlighting
 - Smooth transitions
 - Support section
+- **NEW badge** for React 19 demo
 
 ---
 
@@ -99,12 +201,12 @@
 
 ### Desktop View
 ```
-🖥️ Home Page → Dashboard → Configuration → Services
+🖥️ Home → Dashboard → React 19 Demo → Configuration → Services
 ```
 
 ### Mobile View
 ```
-📱 Responsive sidebar → Touch-friendly cards → Optimized forms
+📱 Responsive sidebar → Touch-friendly → Optimized forms
 ```
 
 ---
@@ -158,10 +260,18 @@ cntx_portal/
 │   ├── components/              # Reusable Components
 │   │   ├── Sidebar.js          # Navigation sidebar
 │   │   ├── DashboardCard.js    # Dashboard card component
-│   │   └── StatsCard.js        # Statistics card component
+│   │   ├── StatsCard.js        # Statistics card component
+│   │   ├── OptimisticForm.js   # 🆕 React 19 useOptimistic demo
+│   │   └── FormWithStatus.js   # 🆕 React 19 useFormStatus demo
+│   │
+│   ├── hooks/                   # 🆕 Custom Hooks
+│   │   └── useAsync.js         # React 19 'use' hook example
 │   │
 │   ├── dashboard/              # Dashboard Page
 │   │   └── page.js            # Main dashboard
+│   │
+│   ├── react19-demo/           # 🆕 React 19 Demo Page
+│   │   └── page.js            # Interactive demos
 │   │
 │   ├── configuration/          # Configuration Page
 │   │   └── page.js            # Settings form
@@ -181,11 +291,13 @@ cntx_portal/
 │
 ├── .env.example                # Environment variables template
 ├── .gitignore                  # Git ignore rules
-├── package.json                # Project dependencies
+├── package.json                # Project dependencies (React 19!)
 ├── tailwind.config.js          # Tailwind configuration
 ├── postcss.config.js           # PostCSS configuration
 ├── next.config.js              # Next.js configuration
 ├── SETUP.md                    # Detailed setup guide
+├── DOCS_HINDI.md               # Hindi documentation
+├── REACT19_HOOKS_GUIDE.md      # 🆕 React 19 hooks guide
 └── README.md                   # This file
 ```
 
@@ -194,10 +306,17 @@ cntx_portal/
 ## 🛠️ टेक्नोलॉजी स्टैक (Tech Stack)
 
 ### Frontend
-- **[Next.js 14](https://nextjs.org/)** - React framework with App Router
-- **[React 18](https://react.dev/)** - UI library
+- **[Next.js 15](https://nextjs.org/)** - React framework with App Router
+- **[React 19](https://react.dev/)** - UI library with latest hooks
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 - **[Lucide React](https://lucide.dev/)** - Beautiful icon library
+
+### React 19 Features
+- ✨ **useOptimistic** - Optimistic UI updates
+- ✨ **useFormStatus** - Form submission status
+- ✨ **useActionState** - Server action state
+- ✨ **use** - Promise & context reading
+- ✨ **Server Actions** - Direct server functions
 
 ### Development Tools
 - **ESLint** - Code linting
@@ -229,6 +348,38 @@ npm start
 npm run lint
 ```
 
+### React 19 Hooks Usage
+
+#### useOptimistic Example
+```javascript
+'use client'
+import { useOptimistic } from 'react'
+
+const [optimisticState, addOptimistic] = useOptimistic(
+  state,
+  (current, optimisticValue) => [...current, optimisticValue]
+)
+```
+
+#### useFormStatus Example
+```javascript
+'use client'
+import { useFormStatus } from 'react-dom'
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return <button disabled={pending}>Submit</button>
+}
+```
+
+#### useActionState Example
+```javascript
+'use client'
+import { useActionState } from 'react-dom'
+
+const [state, formAction] = useActionState(serverAction, initialState)
+```
+
 ### Environment Variables
 
 `.env.local` file में ये variables set करें:
@@ -237,27 +388,6 @@ npm run lint
 NEXT_PUBLIC_API_URL=http://localhost:3000
 DATABASE_URL=your_database_url
 NEXTAUTH_SECRET=your_secret_key
-```
-
-### Adding New Pages
-
-```bash
-# New page बनाने के लिए
-mkdir app/your-page
-touch app/your-page/page.js
-```
-
-### Creating Components
-
-```javascript
-// app/components/YourComponent.js
-export default function YourComponent() {
-  return (
-    <div className="p-4">
-      Your content here
-    </div>
-  )
-}
 ```
 
 ---
@@ -311,6 +441,12 @@ rm -rf .next
 npm run dev
 ```
 
+**React 19 hooks not working:**
+```bash
+# Make sure you have React 19 installed
+npm install react@19 react-dom@19
+```
+
 ---
 
 ## 🤝 योगदान (Contributing)
@@ -329,6 +465,7 @@ npm run dev
 - Comments add करें जहां जरूरी हो
 - Existing code style follow करें
 - Test करें अपने changes को
+- React 19 best practices follow करें
 
 ---
 
@@ -349,6 +486,7 @@ npm run dev
 ## 🙏 Acknowledgments (आभार)
 
 - Next.js team for the amazing framework
+- React team for React 19 and new hooks
 - Tailwind CSS for the utility-first approach
 - Lucide for beautiful icons
 - All contributors and supporters
@@ -367,6 +505,10 @@ npm run dev
 
 ## 🗺️ Roadmap (भविष्य की योजनाएं)
 
+- [x] React 19 hooks implementation ✅
+- [x] useOptimistic demo ✅
+- [x] useFormStatus demo ✅
+- [x] useActionState demo ✅
 - [ ] Authentication system (Login/Register)
 - [ ] Database integration
 - [ ] API endpoints
@@ -379,6 +521,14 @@ npm run dev
 
 ---
 
+## 📚 Documentation
+
+- **[Setup Guide](./SETUP.md)** - Complete installation guide
+- **[Hindi Docs](./DOCS_HINDI.md)** - Detailed Hindi documentation
+- **[React 19 Guide](./REACT19_HOOKS_GUIDE.md)** - React 19 hooks guide
+
+---
+
 ## ⭐ Star History
 
 अगर यह project आपके काम आया, तो कृपया इसे **star** ⭐ करें!
@@ -387,7 +537,7 @@ npm run dev
 
 <div align="center">
 
-**Made with ❤️ by FMS Pathankot**
+**Made with ❤️ and React 19 by FMS Pathankot**
 
 [⬆ Back to Top](#-cntx-portal---context-transfer-portal)
 
