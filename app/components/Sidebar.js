@@ -68,9 +68,9 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="w-64 bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl hidden lg:block">
+    <aside className="w-64 bg-gradient-to-b from-slate-800 to-slate-900 text-white shadow-2xl hidden lg:flex lg:flex-col h-screen sticky top-0">
       {/* Logo Section */}
-      <div className="p-6 border-b border-slate-700">
+      <div className="p-6 border-b border-slate-700 flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
             <FaNetworkWired className="text-white text-xl" />
@@ -84,8 +84,8 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-180px)]">
+      {/* Navigation - Scrollable */}
+      <nav className="p-4 space-y-2 overflow-y-auto flex-1">
         {menuItems.map((item, index) => (
           <div key={index}>
             {item.submenu ? (
@@ -147,8 +147,8 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 bg-slate-900">
+      {/* Footer - Fixed at bottom */}
+      <div className="p-4 border-t border-slate-700 bg-slate-900 flex-shrink-0">
         <div className="text-center">
           <p className="text-xs text-slate-400">Version 1.0.0</p>
           <p className="text-xs text-slate-500 mt-1">© 2024 FMS Pathankot</p>
