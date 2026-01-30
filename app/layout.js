@@ -1,6 +1,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import Sidebar from './components/Sidebar'
+import QueryProvider from './providers/QueryProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -13,12 +14,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex min-h-screen bg-gray-50">
-          <Sidebar />
-          <div className="flex-1">
-            {children}
+        <QueryProvider>
+          <div className="flex min-h-screen bg-gray-50">
+            <Sidebar />
+            <div className="flex-1">
+              {children}
+            </div>
           </div>
-        </div>
+        </QueryProvider>
       </body>
     </html>
   )
