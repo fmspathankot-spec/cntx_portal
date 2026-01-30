@@ -166,8 +166,8 @@ export default function OtnRouteDetailsForm({ initialData }) {
       accessor: 'id',
       render: (value, row, index) => index + 1
     },
-    { header: 'Region', accessor: 'region' },
-    { header: 'ROUTE Name', accessor: 'route_name' },
+    { header: 'REGION', accessor: 'region' },
+    { header: 'ROUTE NAME', accessor: 'route_name' },
     { header: 'END-A', accessor: 'endA' },
     { header: 'END-B', accessor: 'endB' },
     { header: 'LINK_NUM', accessor: 'link_number' }
@@ -188,24 +188,44 @@ export default function OtnRouteDetailsForm({ initialData }) {
         icon={FaNetworkWired}
       />
 
-      {/* Search & Filter Section */}
+      {/* Search, Filter & Export Section - Improved Layout */}
       <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <SearchBar
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search routes..."
-            className="md:col-span-2"
-          />
-          <FilterDropdown
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            label="Filter by Region"
-            placeholder="All Regions"
-            options={regionOptions}
-          />
+        {/* Search and Filter Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+          {/* Search Bar - Takes more space */}
+          <div className="lg:col-span-7">
+            <SearchBar
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search routes..."
+            />
+          </div>
+          
+          {/* Filter Dropdown - Takes less space */}
+          <div className="lg:col-span-5">
+            <FilterDropdown
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+              label="Filter by Region"
+              placeholder="All Regions"
+              options={regionOptions}
+            />
+          </div>
         </div>
-        <div className="mt-4 flex justify-end">
+
+        {/* Export Buttons Row - Separate line, right aligned */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-4 border-t border-gray-200">
+          {/* Results Count */}
+          <div className="text-sm text-gray-600">
+            <span className="font-semibold text-gray-800">{filteredRoutes.length}</span> routes found
+            {selectedRegion && (
+              <span className="ml-2">
+                in <span className="font-semibold text-blue-600">{selectedRegion}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Export Buttons */}
           <ExportButtons
             onExportCSV={exportToCSV}
             onExportPDF={exportToPDF}
