@@ -12,12 +12,14 @@ export default function QueryProvider({ children }) {
           queries: {
             // Default stale time: 5 minutes
             staleTime: 5 * 60 * 1000,
-            // Default cache time: 10 minutes
-            cacheTime: 10 * 60 * 1000,
+            // Default garbage collection time: 10 minutes (formerly cacheTime)
+            gcTime: 10 * 60 * 1000,
             // Refetch on window focus
             refetchOnWindowFocus: true,
+            // Refetch on reconnect
+            refetchOnReconnect: true,
             // Retry failed requests
-            retry: 2,
+            retry: 3,
             // Retry delay
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
           },
