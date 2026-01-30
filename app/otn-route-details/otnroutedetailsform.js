@@ -23,9 +23,9 @@ export default function OtnRouteDetailsForm({ initialData }) {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [isExporting, setIsExporting] = useState(false);
   
-  // Pagination state
+  // Pagination state - Default to 25 items per page
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // ============================================
   // DEBOUNCED SEARCH (300ms delay)
@@ -101,14 +101,15 @@ export default function OtnRouteDetailsForm({ initialData }) {
   const startItem = (currentPage - 1) * itemsPerPage + 1;
   const endItem = Math.min(currentPage * itemsPerPage, filteredRoutes.length);
 
-  // Generate page numbers for pagination
+  // Generate page numbers for pagination - LIMIT TO 25 PAGES MAX
   const getPageNumbers = () => {
     const pages = [];
-    const maxPagesToShow = 7; // Show max 7 page buttons
+    const maxPagesToShow = 5; // Show max 5 page buttons at a time
+    const maxTotalPages = Math.min(totalPages, 25); // Limit to 25 pages max
     
-    if (totalPages <= maxPagesToShow) {
+    if (maxTotalPages <= maxPagesToShow) {
       // Show all pages if total is less than max
-      for (let i = 1; i <= totalPages; i++) {
+      for (let i = 1; i <= maxTotalPages; i++) {
         pages.push(i);
       }
     } else {
@@ -121,18 +122,18 @@ export default function OtnRouteDetailsForm({ initialData }) {
       
       // Show pages around current page
       const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
+      const end = Math.min(maxTotalPages - 1, currentPage + 1);
       
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
       
-      if (currentPage < totalPages - 2) {
+      if (currentPage < maxTotalPages - 2) {
         pages.push('...');
       }
       
-      // Always show last page
-      pages.push(totalPages);
+      // Always show last page (max 25)
+      pages.push(maxTotalPages);
     }
     
     return pages;
@@ -155,6 +156,8 @@ export default function OtnRouteDetailsForm({ initialData }) {
 
   const handlePageChange = (newPage) => {
     if (newPage === '...') return;
+    const maxPage = Math.min(totalPages, 25); // Limit to 25 pages
+    if (newPage > maxPage) return;
     setCurrentPage(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -314,12 +317,16 @@ export default function OtnRouteDetailsForm({ initialData }) {
     );
   }
 
+  // Check if we're beyond page 25
+  const maxDisplayPage = Math.min(totalPages, 25);
+  const isPageLimitReached = totalPages > 25;
+
   // ============================================
   // MAIN RENDER
   // ============================================
 
   return (
-    <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6">
+    <div className="space-y-6 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen p-6 pb-24">
       {/* Page Header with Refresh Indicator */}
       <div className="relative bg-white rounded-xl shadow-md p-6">
         <PageHeader
@@ -449,6 +456,25 @@ export default function OtnRouteDetailsForm({ initialData }) {
         </div>
       </div>
 
+      {/* Page Limit Warning */}
+      {isPageLimitReached && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-lg">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                <span className="font-semibold">Note:</span> Showing first 25 pages only ({25 * itemsPerPage} items). 
+                Use filters or increase items per page to view more data.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Data Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
         <div className="overflow-x-auto">
@@ -499,7 +525,7 @@ export default function OtnRouteDetailsForm({ initialData }) {
           </table>
         </div>
 
-        {/* Enhanced Pagination */}
+        {/* Enhanced Pagination - Limited to 25 pages */}
         {filteredRoutes.length > 0 && (
           <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-6 py-5 border-t-2 border-gray-200">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -514,7 +540,6 @@ export default function OtnRouteDetailsForm({ initialData }) {
                   <option value={25}>25</option>
                   <option value={50}>50</option>
                   <option value={100}>100</option>
-                  <option value={200}>200</option>
                 </select>
                 <span className="text-sm font-medium text-gray-700">per page</span>
               </div>
@@ -524,6 +549,9 @@ export default function OtnRouteDetailsForm({ initialData }) {
                 Showing <span className="font-bold text-blue-600">{startItem}</span> to{' '}
                 <span className="font-bold text-blue-600">{endItem}</span> of{' '}
                 <span className="font-bold text-blue-600">{filteredRoutes.length}</span> routes
+                {isPageLimitReached && (
+                  <span className="ml-2 text-yellow-600">(Max 25 pages)</span>
+                )}
               </div>
 
               {/* Page numbers with navigation */}
@@ -572,7 +600,7 @@ export default function OtnRouteDetailsForm({ initialData }) {
                 {/* Next button */}
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === maxDisplayPage}
                   className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center"
                   title="Next page"
                 >
@@ -582,8 +610,8 @@ export default function OtnRouteDetailsForm({ initialData }) {
 
                 {/* Last button */}
                 <button
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
+                  onClick={() => handlePageChange(maxDisplayPage)}
+                  disabled={currentPage === maxDisplayPage}
                   className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   title="Last page"
                 >
