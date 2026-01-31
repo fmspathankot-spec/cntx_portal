@@ -4,15 +4,19 @@ import { NextResponse } from 'next/server';
  * GET /api/otn-route-detail
  * 
  * Fetches OTN route details from external API
- * This acts as a proxy to avoid CORS issues and centralize API calls
+ * Acts as a proxy to avoid CORS issues
+ * Secure logging (development only)
  */
 export async function GET(request) {
   try {
-    // Get the external API URL from environment variable
     const externalApiUrl = process.env.OTN_ROUTE_DETAIL;
     
     if (!externalApiUrl) {
-      console.error('OTN_ROUTE_DETAIL environment variable is not set');
+      // 🔒 SECURE: Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ OTN_ROUTE_DETAIL environment variable is not set');
+      }
+      
       return NextResponse.json(
         { 
           error: 'API configuration error',
@@ -22,25 +26,28 @@ export async function GET(request) {
       );
     }
 
-    console.log(`Fetching OTN routes from: ${externalApiUrl}`);
+    // 🔒 SECURE: Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 Fetching OTN routes from: ${externalApiUrl}`);
+    }
 
-    // Fetch data from external API
     const response = await fetch(externalApiUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      // Don't cache in production, always get fresh data
       cache: 'no-store',
-      // Set timeout
-      signal: AbortSignal.timeout(30000), // 30 seconds timeout
+      signal: AbortSignal.timeout(30000),
     });
 
-    // Check if response is ok
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`External API error (${response.status}):`, errorText);
+      
+      // 🔒 SECURE: Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ External API error (${response.status}):`, errorText);
+      }
       
       return NextResponse.json(
         { 
@@ -52,12 +59,14 @@ export async function GET(request) {
       );
     }
 
-    // Parse JSON response
     const data = await response.json();
     
-    // Validate data
     if (!data) {
-      console.error('External API returned empty data');
+      // 🔒 SECURE: Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error('❌ External API returned empty data');
+      }
+      
       return NextResponse.json(
         { 
           error: 'Invalid data',
@@ -67,12 +76,13 @@ export async function GET(request) {
       );
     }
 
-    // Ensure data is an array
     const routesData = Array.isArray(data) ? data : [data];
     
-    console.log(`Successfully fetched ${routesData.length} routes`);
+    // 🔒 SECURE: Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ Successfully fetched ${routesData.length} routes`);
+    }
 
-    // Return successful response with CORS headers
     return NextResponse.json(routesData, {
       status: 200,
       headers: {
@@ -84,9 +94,11 @@ export async function GET(request) {
     });
 
   } catch (error) {
-    console.error('Error in OTN route API:', error);
+    // 🔒 SECURE: Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ Error in OTN route API:', error);
+    }
     
-    // Handle timeout errors
     if (error.name === 'AbortError' || error.name === 'TimeoutError') {
       return NextResponse.json(
         { 
@@ -97,7 +109,6 @@ export async function GET(request) {
       );
     }
 
-    // Handle network errors
     if (error.message.includes('fetch failed') || error.code === 'ECONNREFUSED') {
       return NextResponse.json(
         { 
@@ -108,7 +119,6 @@ export async function GET(request) {
       );
     }
 
-    // Generic error
     return NextResponse.json(
       { 
         error: 'Internal server error',
@@ -122,7 +132,6 @@ export async function GET(request) {
 
 /**
  * OPTIONS /api/otn-route-detail
- * 
  * Handle CORS preflight requests
  */
 export async function OPTIONS(request) {
