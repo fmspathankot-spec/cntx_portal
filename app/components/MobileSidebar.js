@@ -33,25 +33,25 @@ export default function MobileSidebar() {
       name: "OTN",
       icon: FaNetworkWired,
       submenu: [
-        { name: "OTN Link Status", href: "/otnroutestatus" },
+        { name: "OTN Link Status", href: "/otn-route-status" },
         { name: "OTN Route Details", href: "/otn-route-details" },
         { name: "OTN Services Status", href: "/otn-service-failure-details" },
-        { name: "OTN All Service Data", href: "/OTNALLSERVICESDETAIL" },
+        { name: "OTN All Service Data", href: "/otn-all-services-detail" },
       ],
     },
     {
       name: "CPAN",
       icon: FaNetworkWired,
       submenu: [
-        { name: "CPAN Link Status", href: "/cpanlinkstatus" },
-        { name: "CPAN Link Detail", href: "/cpanlinkdetail" },
+        { name: "CPAN Link Status", href: "/cpan-link-status" },
+        { name: "CPAN Link Detail", href: "/cpan-link-detail" },
       ],
     },
     {
       name: "MAAN",
       icon: FaNetworkWired,
       submenu: [
-        { name: "MAAN Node Status", href: "/MAANPING" },
+        { name: "MAAN Node Status", href: "/maan-ping" },
         { name: "OTN Port Status", href: "/otn-port-status" },
         { name: "Project Topology", href: "/project-topology" },
       ],
@@ -98,10 +98,11 @@ export default function MobileSidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-180px)]">
+        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-120px)]">
           {menuItems.map((item, index) => (
             <div key={index}>
               {item.submenu ? (
+                // Menu with submenu
                 <div>
                   <button
                     onClick={() => toggleMenu(item.name)}
@@ -122,6 +123,7 @@ export default function MobileSidebar() {
                     )}
                   </button>
 
+                  {/* Submenu */}
                   {expandedMenu === item.name && (
                     <div className="mt-2 ml-4 space-y-1 border-l-2 border-slate-700 pl-4">
                       {item.submenu.map((subitem, subindex) => (
@@ -142,6 +144,7 @@ export default function MobileSidebar() {
                   )}
                 </div>
               ) : (
+                // Simple menu item
                 <Link
                   href={item.href}
                   onClick={() => setIsOpen(false)}
@@ -158,14 +161,6 @@ export default function MobileSidebar() {
             </div>
           ))}
         </nav>
-
-        {/* Footer */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 bg-slate-900">
-          <div className="text-center">
-            <p className="text-xs text-slate-400">Version 1.0.0</p>
-            <p className="text-xs text-slate-500 mt-1">© 2024 FMS Pathankot</p>
-          </div>
-        </div>
       </aside>
     </>
   );
