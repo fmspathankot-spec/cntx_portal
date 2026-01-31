@@ -27,13 +27,14 @@ export function useOtnRouteStatus(initialData = null) {
       
       // 🔒 SECURE: Only log in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`🔄 Fetching OTN route status from: ${apiUrl}`);
+        console.log(`🔄 [Hook] Fetching OTN route status from: ${apiUrl}`);
       }
       
       const response = await fetch(apiUrl, {
         headers: {
           'Content-Type': 'application/json',
         },
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -41,7 +42,7 @@ export function useOtnRouteStatus(initialData = null) {
         
         // 🔒 SECURE: Only log errors in development
         if (process.env.NODE_ENV === 'development') {
-          console.error(`❌ API Error (${response.status}):`, errorText);
+          console.error(`❌ [Hook] API Error (${response.status}):`, errorText);
         }
         
         throw new Error(`API Error (${response.status}): ${errorText || 'Unknown error'}`);
@@ -51,26 +52,46 @@ export function useOtnRouteStatus(initialData = null) {
       
       // 🔒 SECURE: Only log success in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ Successfully fetched ${data?.length || 0} route status records`);
+        console.log(`✅ [Hook] Successfully fetched route status`);
+        console.log(`📊 [Hook] Data type: ${Array.isArray(data) ? 'Array' : typeof data}`);
+        console.log(`📊 [Hook] Data length: ${Array.isArray(data) ? data.length : 'N/A'}`);
+        console.log(`📊 [Hook] Sample data:`, data?.[0] || data);
       }
       
-      return Array.isArray(data) ? data : [data];
+      // Ensure we always return an array
+      const result = Array.isArray(data) ? data : (data ? [data] : []);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`📊 [Hook] Returning ${result.length} records`);
+      }
+      
+      return result;
     },
     
-    initialData,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
+    // Only use initialData if it's a valid array with items
+    initialData: (initialData && Array.isArray(initialData) && initialData.length > 0) 
+      ? initialData 
+      : undefined,
+    
+    // Cache settings
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
+    
+    // Refetch settings
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchInterval: 60 * 1000,
+    refetchInterval: 60 * 1000, // 1 minute
+    
+    // Retry settings
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     
+    // Error handler
     onError: (error) => {
       // 🔒 SECURE: Only log errors in development
       if (process.env.NODE_ENV === 'development') {
-        console.error('❌ Error fetching OTN route status:', error);
-        console.error('💡 Check:');
+        console.error('❌ [Hook] Error fetching OTN route status:', error);
+        console.error('💡 [Hook] Check:');
         console.error('   1. Is OTN_ROUTE_STATUS set in .env.local?');
         console.error('   2. Is the external API running?');
         console.error('   3. Is the API URL correct?');
@@ -78,10 +99,11 @@ export function useOtnRouteStatus(initialData = null) {
       }
     },
     
+    // Success handler
     onSuccess: (data) => {
       // 🔒 SECURE: Only log success in development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`✅ Successfully loaded ${data?.length || 0} route status records`);
+        console.log(`✅ [Hook] Successfully loaded ${data?.length || 0} route status records`);
       }
     },
   });
