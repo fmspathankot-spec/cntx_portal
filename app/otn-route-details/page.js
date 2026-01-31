@@ -1,12 +1,26 @@
 import OtnRouteDetailsForm from "./otnroutedetailsform";
 
+/**
+ * OTN Route Details Page - Server Component
+ * 
+ * Purpose:
+ * - Server-side data fetching (SSR)
+ * - SEO friendly
+ * - Fast initial load
+ * - Error handling
+ * - Secure logging (development only)
+ */
 export default async function OtnRouteDetails() {
   let data = null;
   let error = null;
 
   try {
-    // Use environment variable with fallback
     const apiUrl = process.env.OTN_ROUTE_DETAIL || "http://localhost:3000/api/otn-route-detail";
+    
+    // 🔒 SECURE: Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔄 [Server] Fetching OTN route details from: ${apiUrl}`);
+    }
     
     const response = await fetch(apiUrl, {
       cache: 'no-store',
@@ -15,19 +29,38 @@ export default async function OtnRouteDetails() {
 
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // 🔒 SECURE: Only log errors in development
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`❌ [Server] API Error (${response.status}):`, errorText);
+      }
+      
       throw new Error(`API Error (${response.status}): ${errorText || 'Unknown error'}`);
     }
 
     data = await response.json();
+    
+    // 🔒 SECURE: Only log success in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`✅ [Server] Successfully fetched ${data?.length || 0} route details`);
+    }
+    
   } catch (err) {
-    console.error('Error in OtnRouteDetails:', err);
+    // 🔒 SECURE: Only log errors in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('❌ [Server] Error in OtnRouteDetails:', err);
+      console.error('💡 [Server] Check:');
+      console.error('   1. Is OTN_ROUTE_DETAIL set in .env.local?');
+      console.error('   2. Is the external API running?');
+      console.error('   3. Is the API URL correct?');
+    }
+    
     error = {
       message: 'Unable to connect to the server. Please check your network connection and try again.',
       details: err.message
     };
   }
 
-  // If there was an error, show the error message
   if (error) {
     return (
       <div className="container mx-auto p-4">
@@ -54,9 +87,7 @@ export default async function OtnRouteDetails() {
     );
   }
 
-  // Ensure data is an array before passing it to the component
   const routeDetailsData = Array.isArray(data) ? data : [data];
 
-  // Pass the server-fetched data as initialData prop
   return <OtnRouteDetailsForm initialData={routeDetailsData} />;
 }
