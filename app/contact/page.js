@@ -51,7 +51,7 @@ export default function ContactPage() {
           Contact Us
         </h1>
         <p className="text-gray-600 text-lg">
-          Get in touch with our team. We're here to help!
+          Get in touch with our team. We&apos;re here to help!
         </p>
       </div>
 
@@ -62,7 +62,7 @@ export default function ContactPage() {
           {showSuccess && (
             <div className="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg flex items-center gap-2">
               <AlertCircle className="w-5 h-5" />
-              <span>Message sent successfully! We'll get back to you soon.</span>
+              <span>Message sent successfully! We&apos;ll get back to you soon.</span>
             </div>
           )}
 
