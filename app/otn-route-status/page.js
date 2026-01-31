@@ -39,11 +39,17 @@ export default async function OtnRouteStatus() {
       throw new Error(`API Error (${response.status}): ${errorText || 'Unknown error'}`);
     }
 
-    data = await response.json();
+    const responseData = await response.json();
+    
+    // Ensure data is always an array
+    data = Array.isArray(responseData) ? responseData : (responseData ? [responseData] : []);
     
     // 🔒 SECURE: Only log success in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`✅ [Server] Successfully fetched ${data?.length || 0} route status records`);
+      console.log(`✅ [Server] Successfully fetched route status`);
+      console.log(`📊 [Server] Data type: ${Array.isArray(responseData) ? 'Array' : typeof responseData}`);
+      console.log(`📊 [Server] Data length: ${data.length}`);
+      console.log(`📊 [Server] Sample data:`, data[0]);
     }
     
   } catch (err) {
@@ -110,7 +116,13 @@ export default async function OtnRouteStatus() {
     );
   }
 
-  const statusData = Array.isArray(data) ? data : [data];
+  // Pass data to client component
+  // If data is null or empty, pass empty array
+  const initialData = (data && Array.isArray(data) && data.length > 0) ? data : [];
   
-  return <OtnRouteStatusForm initialData={statusData} />;
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`📤 [Server] Passing ${initialData.length} records to client component`);
+  }
+  
+  return <OtnRouteStatusForm initialData={initialData} />;
 }
