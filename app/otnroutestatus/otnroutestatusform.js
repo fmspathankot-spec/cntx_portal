@@ -5,16 +5,24 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { debounce } from 'lodash';
 import PageHeader from '../components/PageHeader';
-import { FaNetworkWired, FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaNetworkWired, FaSearch, FaFilter, FaChevronLeft, FaChevronRight, FaClock, FaExclamationTriangle } from 'react-icons/fa';
 import { useOtnRouteStatus } from '../hooks/useOtnRouteStatus';
 
 /**
  * OTN Route Status Form - Client Component
  * 
+ * API Fields:
+ * - region: Region name
+ * - linkname: Link/Route name
+ * - section: Section/Area
+ * - begin_time: When the issue started
+ * - report_time: When it was reported
+ * - down_time: Total downtime duration
+ * 
  * Features:
  * - Display route status in table
  * - Search functionality
- * - Filter by region and status
+ * - Filter by region and section
  * - Pagination
  * - CSV/PDF export
  * - Auto-refresh every 1 minute
@@ -26,12 +34,6 @@ export default function OtnRouteStatusForm({ initialData }) {
   // ============================================
   
   const { data, isLoading, error, refetch, isFetching } = useOtnRouteStatus(initialData);
-  // data: Route status data
-  // isLoading: Initial loading state
-  // error: Error object (if any)
-  // refetch: Manual refetch function
-  // isFetching: Background fetching state
-  
   const allRoutes = data || [];
 
   // ============================================
@@ -39,25 +41,12 @@ export default function OtnRouteStatusForm({ initialData }) {
   // ============================================
   
   const [searchInput, setSearchInput] = useState('');
-  // Real-time search input
-  
   const [searchTerm, setSearchTerm] = useState('');
-  // Debounced search term (300ms delay)
-  
   const [selectedRegion, setSelectedRegion] = useState('');
-  // Selected region filter
-  
-  const [selectedStatus, setSelectedStatus] = useState('');
-  // Selected status filter (UP/DOWN)
-  
+  const [selectedSection, setSelectedSection] = useState('');
   const [isExporting, setIsExporting] = useState(false);
-  // PDF export in progress
-  
   const [currentPage, setCurrentPage] = useState(1);
-  // Current pagination page
-  
   const [itemsPerPage, setItemsPerPage] = useState(25);
-  // Items per page (default: 25)
 
   // ============================================
   // DEBOUNCED SEARCH (300ms delay)
@@ -66,16 +55,15 @@ export default function OtnRouteStatusForm({ initialData }) {
   useEffect(() => {
     const debouncedSearch = debounce(() => {
       setSearchTerm(searchInput);
-      setCurrentPage(1); // Reset to first page
+      setCurrentPage(1);
     }, 300);
 
     debouncedSearch();
-
     return () => debouncedSearch.cancel();
   }, [searchInput]);
 
   // ============================================
-  // COMPUTED VALUES (useMemo for performance)
+  // COMPUTED VALUES
   // ============================================
   
   // Unique regions
@@ -84,24 +72,22 @@ export default function OtnRouteStatusForm({ initialData }) {
     
     const regionSet = new Set();
     allRoutes.forEach(route => {
-      const region = route.region_name || route.region || route.location;
-      if (region) regionSet.add(region);
+      if (route.region) regionSet.add(route.region);
     });
     
     return Array.from(regionSet).sort();
   }, [allRoutes]);
 
-  // Unique statuses
-  const statuses = useMemo(() => {
+  // Unique sections
+  const sections = useMemo(() => {
     if (!allRoutes || !Array.isArray(allRoutes)) return [];
     
-    const statusSet = new Set();
+    const sectionSet = new Set();
     allRoutes.forEach(route => {
-      const status = route.status;
-      if (status) statusSet.add(status);
+      if (route.section) sectionSet.add(route.section);
     });
     
-    return Array.from(statusSet).sort();
+    return Array.from(sectionSet).sort();
   }, [allRoutes]);
 
   // Filtered routes
@@ -113,37 +99,39 @@ export default function OtnRouteStatusForm({ initialData }) {
 
       // Region filter
       if (selectedRegion) {
-        const regionFields = ['region', 'region_name', 'location', 'city', 'area'];
-        const hasMatchingRegion = regionFields.some(field => {
-          const value = route[field];
-          return typeof value === 'string' &&
-                 value.toLowerCase().includes(selectedRegion.toLowerCase());
-        });
-        if (!hasMatchingRegion) return false;
+        if (!route.region || !route.region.toLowerCase().includes(selectedRegion.toLowerCase())) {
+          return false;
+        }
       }
 
-      // Status filter
-      if (selectedStatus) {
-        const status = route.status;
-        if (!status || status.toLowerCase() !== selectedStatus.toLowerCase()) {
+      // Section filter
+      if (selectedSection) {
+        if (!route.section || !route.section.toLowerCase().includes(selectedSection.toLowerCase())) {
           return false;
         }
       }
 
       // Search filter
       if (searchTerm) {
-        const searchableFields = Object.values(route).filter(
-          value => typeof value === 'string' || typeof value === 'number'
-        );
+        const searchableFields = [
+          route.region,
+          route.linkname,
+          route.section,
+          route.begin_time,
+          route.report_time,
+          route.down_time
+        ].filter(value => value);
+        
         const hasMatch = searchableFields.some(field =>
           String(field).toLowerCase().includes(searchTerm.toLowerCase())
         );
+        
         if (!hasMatch) return false;
       }
 
       return true;
     });
-  }, [allRoutes, selectedRegion, selectedStatus, searchTerm]);
+  }, [allRoutes, selectedRegion, selectedSection, searchTerm]);
 
   // Paginated routes
   const paginatedRoutes = useMemo(() => {
@@ -154,7 +142,7 @@ export default function OtnRouteStatusForm({ initialData }) {
 
   // Pagination info
   const totalPages = Math.ceil(filteredRoutes.length / itemsPerPage);
-  const maxDisplayPage = Math.min(totalPages, 25); // Limit to 25 pages
+  const maxDisplayPage = Math.min(totalPages, 25);
   const isPageLimitReached = totalPages > 25;
   
   const startItem = (currentPage - 1) * itemsPerPage + 1;
@@ -181,8 +169,8 @@ export default function OtnRouteStatusForm({ initialData }) {
     setCurrentPage(1);
   };
 
-  const handleStatusChange = (e) => {
-    setSelectedStatus(e.target.value);
+  const handleSectionChange = (e) => {
+    setSelectedSection(e.target.value);
     setCurrentPage(1);
   };
 
@@ -190,7 +178,7 @@ export default function OtnRouteStatusForm({ initialData }) {
     setSearchInput('');
     setSearchTerm('');
     setSelectedRegion('');
-    setSelectedStatus('');
+    setSelectedSection('');
     setCurrentPage(1);
   };
 
@@ -201,15 +189,17 @@ export default function OtnRouteStatusForm({ initialData }) {
   const exportToCSV = () => {
     if (filteredRoutes.length === 0) return;
 
-    const headers = ['#', 'Region', 'Route Name', 'Status', 'Last Updated'];
+    const headers = ['#', 'Region', 'Link Name', 'Section', 'Begin Time', 'Report Time', 'Down Time'];
     const csvContent = [
       headers.join(','),
       ...filteredRoutes.map((route, index) => [
         index + 1,
-        `"${(route.region_name || route.region || '').replace(/"/g, '""')}"`,
-        `"${(route.route_name || route.name || '').replace(/"/g, '""')}"`,
-        `"${(route.status || '').replace(/"/g, '""')}"`,
-        `"${(route.last_updated || route.updated_at || '').replace(/"/g, '""')}"`
+        `"${(route.region || '').replace(/"/g, '""')}"`,
+        `"${(route.linkname || '').replace(/"/g, '""')}"`,
+        `"${(route.section || '').replace(/"/g, '""')}"`,
+        `"${(route.begin_time || '').replace(/"/g, '""')}"`,
+        `"${(route.report_time || '').replace(/"/g, '""')}"`,
+        `"${(route.down_time || '').replace(/"/g, '""')}"`
       ].join(','))
     ].join('\n');
 
@@ -240,13 +230,15 @@ export default function OtnRouteStatusForm({ initialData }) {
       doc.text(`Total Routes: ${filteredRoutes.length}`, 14, 27);
 
       // Table
-      const headers = [['#', 'Region', 'Route Name', 'Status', 'Last Updated']];
+      const headers = [['#', 'Region', 'Link Name', 'Section', 'Begin Time', 'Report Time', 'Down Time']];
       const data = filteredRoutes.map((route, index) => [
         index + 1,
-        route.region_name || route.region || '-',
-        route.route_name || route.name || '-',
-        route.status || '-',
-        route.last_updated || route.updated_at || '-'
+        route.region || '-',
+        route.linkname || '-',
+        route.section || '-',
+        route.begin_time || '-',
+        route.report_time || '-',
+        route.down_time || '-'
       ]);
 
       autoTable(doc, {
@@ -257,20 +249,25 @@ export default function OtnRouteStatusForm({ initialData }) {
           fillColor: [37, 99, 235],
           textColor: 255,
           fontStyle: 'bold',
-          halign: 'center'
+          halign: 'center',
+          fontSize: 8
         },
         alternateRowStyles: { fillColor: [249, 250, 251] },
         styles: { 
-          fontSize: 8,
-          cellPadding: 2,
+          fontSize: 7,
+          cellPadding: 1.5,
           halign: 'left'
         },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 15 },
-          3: { halign: 'center' }
+          0: { halign: 'center', cellWidth: 10 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 35 },
+          5: { cellWidth: 35 },
+          6: { cellWidth: 25 }
         },
         didDrawPage: function(data) {
-          // Footer
           const pageNumber = doc.internal.getCurrentPageInfo().pageNumber;
           const pageSize = doc.internal.pageSize;
           const pageHeight = pageSize.height || pageSize.getHeight();
@@ -358,7 +355,7 @@ export default function OtnRouteStatusForm({ initialData }) {
         <div className="max-w-md w-full bg-white border-l-4 border-red-600 rounded-lg p-6 shadow-xl">
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <FaTimesCircle className="h-6 w-6 text-red-600" />
+              <FaExclamationTriangle className="h-6 w-6 text-red-600" />
             </div>
             <div className="ml-3 flex-1">
               <h3 className="text-lg font-medium text-red-900">
@@ -421,7 +418,7 @@ export default function OtnRouteStatusForm({ initialData }) {
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search routes, regions, status..."
+              placeholder="Search region, link name, section..."
               className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-400"
             />
             {searchInput && (
@@ -454,19 +451,19 @@ export default function OtnRouteStatusForm({ initialData }) {
           </div>
         </div>
 
-        {/* Status Filter */}
+        {/* Section Filter */}
         <div className="md:col-span-3">
           <div className="relative">
             <FaFilter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
             <select
-              value={selectedStatus}
-              onChange={handleStatusChange}
+              value={selectedSection}
+              onChange={handleSectionChange}
               className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 appearance-none cursor-pointer"
             >
-              <option value="">All Statuses</option>
-              {statuses.map((status, index) => (
-                <option key={index} value={status}>
-                  {status}
+              <option value="">All Sections</option>
+              {sections.map((section, index) => (
+                <option key={index} value={section}>
+                  {section}
                 </option>
               ))}
             </select>
@@ -474,7 +471,7 @@ export default function OtnRouteStatusForm({ initialData }) {
         </div>
 
         {/* Clear Filters Button */}
-        {(searchTerm || selectedRegion || selectedStatus) && (
+        {(searchTerm || selectedRegion || selectedSection) && (
           <div className="md:col-span-1 flex items-center">
             <button
               onClick={clearFilters}
@@ -497,7 +494,7 @@ export default function OtnRouteStatusForm({ initialData }) {
             {filteredRoutes.length === 1 ? 'route' : 'routes'} found
           </span>
           
-          {(searchTerm || selectedRegion || selectedStatus) && (
+          {(searchTerm || selectedRegion || selectedSection) && (
             <span className="text-sm text-gray-500">
               (filtered from {allRoutes.length} total)
             </span>
@@ -555,13 +552,19 @@ export default function OtnRouteStatusForm({ initialData }) {
                   Region
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
-                  Route Name
-                </th>
-                <th className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider">
-                  Status
+                  Link Name
                 </th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
-                  Last Updated
+                  Section
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                  Begin Time
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                  Report Time
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">
+                  Down Time
                 </th>
               </tr>
             </thead>
@@ -576,36 +579,41 @@ export default function OtnRouteStatusForm({ initialData }) {
                       {startItem + index}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                      {route.region_name || route.region || '-'}
+                      {route.region || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 font-medium">
-                      {route.route_name || route.name || '-'}
+                      {route.linkname || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {route.status ? (
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                          route.status.toUpperCase() === 'UP' 
-                            ? 'bg-green-100 text-green-800'
-                            : route.status.toUpperCase() === 'DOWN'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {route.status.toUpperCase() === 'UP' && <FaCheckCircle className="mr-1" />}
-                          {route.status.toUpperCase() === 'DOWN' && <FaTimesCircle className="mr-1" />}
-                          {route.status}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      {route.section || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <div className="flex items-center">
+                        <FaClock className="mr-2 text-blue-500" />
+                        {route.begin_time || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <div className="flex items-center">
+                        <FaClock className="mr-2 text-green-500" />
+                        {route.report_time || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {route.down_time ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800">
+                          <FaExclamationTriangle className="mr-1" />
+                          {route.down_time}
                         </span>
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {route.last_updated || route.updated_at || '-'}
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-16 text-center">
+                  <td colSpan={7} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center justify-center text-gray-500">
                       <FaNetworkWired className="text-6xl mb-4 text-gray-300" />
                       <p className="text-lg font-medium">No routes found</p>
