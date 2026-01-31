@@ -32,25 +32,25 @@ const Sidebar = () => {
       name: "OTN",
       icon: FaNetworkWired,
       submenu: [
-        { name: "OTN Link Status", href: "/otnroutestatus" },
+        { name: "OTN Link Status", href: "/otn-route-status" },
         { name: "OTN Route Details", href: "/otn-route-details" },
         { name: "OTN Services Status", href: "/otn-service-failure-details" },
-        { name: "OTN All Service Data", href: "/OTNALLSERVICESDETAIL" },
+        { name: "OTN All Service Data", href: "/otn-all-services-detail" },
       ],
     },
     {
       name: "CPAN",
       icon: FaNetworkWired,
       submenu: [
-        { name: "CPAN Link Status", href: "/cpanlinkstatus" },
-        { name: "CPAN Link Detail", href: "/cpanlinkdetail" },
+        { name: "CPAN Link Status", href: "/cpan-link-status" },
+        { name: "CPAN Link Detail", href: "/cpan-link-detail" },
       ],
     },
     {
       name: "MAAN",
       icon: FaNetworkWired,
       submenu: [
-        { name: "MAAN Node Status", href: "/MAANPING" },
+        { name: "MAAN Node Status", href: "/maan-ping" },
         { name: "OTN Port Status", href: "/otn-port-status" },
         { name: "Project Topology", href: "/project-topology" },
       ],
