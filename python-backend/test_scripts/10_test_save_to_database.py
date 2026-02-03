@@ -1,6 +1,7 @@
 """
 Test Script 10: Test Save to Database
 Yeh script data ko database mein save karta hai
+Automatically router create karta hai agar nahi hai
 
 Expected Output:
 ✅ Data saved to database
@@ -23,29 +24,60 @@ DB_CONFIG = {
     'password': 'your_password'  # <-- YAHAN APNA PASSWORD DAALO!
 }
 
-# Test data
-TEST_DATA = {
-    'router_id': 1,  # First router
-    'parameter_name': 'TEJAS_OSPF_NEIGHBORS',
-    'reading_data': {
-        'neighbor_count': 2,
-        'neighbors': [
-            {
-                'neighbor_id': '10.125.0.1',
-                'state': 'FULL/PTOP',
-                'interface': 'vlan50',
-                'bfd_status': 'Enabled'
-            },
-            {
-                'neighbor_id': '10.125.0.2',
-                'state': 'FULL/PTOP',
-                'interface': 'vlan20',
-                'bfd_status': 'Enabled'
-            }
-        ]
-    },
-    'raw_output': 'Test OSPF output...'
-}
+def get_or_create_test_router(conn):
+    """
+    Test router ko fetch karta hai ya create karta hai
+    
+    Returns:
+        router_id (int)
+    """
+    try:
+        cursor = conn.cursor()
+        
+        # Check if any router exists
+        cursor.execute("SELECT id, hostname FROM routers LIMIT 1")
+        result = cursor.fetchone()
+        
+        if result:
+            router_id = result[0]
+            hostname = result[1]
+            print(f"✅ Found existing router: {hostname} (ID: {router_id})")
+            cursor.close()
+            return router_id
+        
+        # No router found, create test router
+        print("⚠️  No routers found! Creating test router...")
+        
+        # Create credential if not exists
+        cursor.execute("""
+            INSERT INTO router_credentials (credential_name, username, password, description)
+            VALUES ('test_admin', 'admin', 'test123', 'Test credentials for script')
+            ON CONFLICT (credential_name) DO NOTHING
+        """)
+        
+        # Create test router
+        cursor.execute("""
+            SELECT add_router_with_credential(
+                'TEST-ROUTER-1',
+                '10.125.1.1',
+                'test_admin',
+                'tejas',
+                'Test Location'
+            )
+        """)
+        
+        router_id = cursor.fetchone()[0]
+        conn.commit()
+        
+        print(f"✅ Test router created with ID: {router_id}")
+        
+        cursor.close()
+        return router_id
+        
+    except Exception as e:
+        print(f"❌ Error getting/creating router: {e}")
+        conn.rollback()
+        return None
 
 def save_reading(conn, router_id, parameter_name, reading_data, raw_output):
     """
@@ -73,9 +105,21 @@ def save_reading(conn, router_id, parameter_name, reading_data, raw_output):
         
         if not result:
             print(f"⚠️  Parameter '{parameter_name}' not found in database!")
-            return False
-        
-        parameter_id = result[0]
+            print(f"💡 Creating parameter...")
+            
+            # Create parameter
+            cursor.execute("""
+                INSERT INTO monitoring_parameters 
+                (parameter_name, parameter_category, command_template, applies_to)
+                VALUES (%s, 'NETWORK', 'test command', 'ROUTER')
+                RETURNING id
+            """, (parameter_name,))
+            
+            parameter_id = cursor.fetchone()[0]
+            conn.commit()
+            print(f"✅ Parameter created with ID: {parameter_id}")
+        else:
+            parameter_id = result[0]
         
         # Reading save karo
         query = """
@@ -156,19 +200,47 @@ def test_save_to_database():
         conn = psycopg2.connect(**DB_CONFIG)
         print("✅ Connected!\n")
         
+        # Get or create test router
+        router_id = get_or_create_test_router(conn)
+        
+        if not router_id:
+            print("\n❌ Failed to get/create router!")
+            return False
+        
+        print()
+        
+        # Test data
+        test_data = {
+            'neighbor_count': 2,
+            'neighbors': [
+                {
+                    'neighbor_id': '10.125.0.1',
+                    'state': 'FULL/PTOP',
+                    'interface': 'vlan50',
+                    'bfd_status': 'Enabled'
+                },
+                {
+                    'neighbor_id': '10.125.0.2',
+                    'state': 'FULL/PTOP',
+                    'interface': 'vlan20',
+                    'bfd_status': 'Enabled'
+                }
+            ]
+        }
+        
         # Test data save karo
         print("🔄 Saving test data...")
-        print(f"   Router ID: {TEST_DATA['router_id']}")
-        print(f"   Parameter: {TEST_DATA['parameter_name']}")
-        print(f"   Data: {len(TEST_DATA['reading_data']['neighbors'])} neighbors")
+        print(f"   Router ID: {router_id}")
+        print(f"   Parameter: TEJAS_OSPF_NEIGHBORS")
+        print(f"   Data: {test_data['neighbor_count']} neighbors")
         print()
         
         reading_id = save_reading(
             conn,
-            TEST_DATA['router_id'],
-            TEST_DATA['parameter_name'],
-            TEST_DATA['reading_data'],
-            TEST_DATA['raw_output']
+            router_id,
+            'TEJAS_OSPF_NEIGHBORS',
+            test_data,
+            'Test OSPF output...'
         )
         
         if not reading_id:
@@ -188,7 +260,7 @@ def test_save_to_database():
             print(f"   Router: {reading['hostname']}")
             print(f"   Parameter: {reading['parameter_name']}")
             print(f"   Reading Time: {reading['reading_time']}")
-            print(f"   Data: {reading['reading_data']}")
+            print(f"   Neighbor Count: {reading['reading_data']['neighbor_count']}")
         else:
             print("\n❌ Failed to retrieve data!")
             return False
@@ -200,6 +272,11 @@ def test_save_to_database():
         
     except Exception as e:
         print(f"\n❌ Error: {e}")
+        print("\n💡 Solutions:")
+        print("   1. Check if PostgreSQL is running")
+        print("   2. Verify password in DB_CONFIG")
+        print("   3. Check if database 'cntx_portal' exists")
+        print("   4. Run schema files if tables missing")
         return False
     
     print("\n" + "="*60)
