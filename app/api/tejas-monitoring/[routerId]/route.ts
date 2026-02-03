@@ -6,10 +6,7 @@
 import { NextResponse } from 'next/server';
 import { query } from '../../../../lib/db';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { routerId: string } }
-) {
+export async function GET(request, { params }) {
   try {
     const routerId = params.routerId;
 
@@ -118,7 +115,7 @@ export async function GET(
 
     return NextResponse.json(response);
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching monitoring data:', error);
     return NextResponse.json(
       { 
