@@ -3,7 +3,7 @@
  * PostgreSQL connection using pg library
  */
 
-import { Pool, QueryResult } from 'pg';
+const { Pool } = require('pg');
 
 // Create connection pool
 const pool = new Pool({
@@ -29,13 +29,10 @@ pool.on('error', (err) => {
 /**
  * Execute a query
  */
-export async function query<T = any>(
-  text: string,
-  params?: any[]
-): Promise<QueryResult<T>> {
+async function query(text, params) {
   const start = Date.now();
   try {
-    const result = await pool.query<T>(text, params);
+    const result = await pool.query(text, params);
     const duration = Date.now() - start;
     console.log('Executed query', { text, duration, rows: result.rowCount });
     return result;
@@ -48,7 +45,7 @@ export async function query<T = any>(
 /**
  * Get a client from the pool for transactions
  */
-export async function getClient() {
+async function getClient() {
   const client = await pool.connect();
   return client;
 }
@@ -56,8 +53,13 @@ export async function getClient() {
 /**
  * Close all connections (for cleanup)
  */
-export async function closePool() {
+async function closePool() {
   await pool.end();
 }
 
-export default pool;
+module.exports = {
+  pool,
+  query,
+  getClient,
+  closePool
+};
