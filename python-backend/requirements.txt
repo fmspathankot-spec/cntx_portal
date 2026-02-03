@@ -1,0 +1,11 @@
+# Database
+psycopg2-binary==2.9.9
+
+# SSH
+paramiko==3.4.0
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Optional: For better logging
+colorlog==6.8.0
