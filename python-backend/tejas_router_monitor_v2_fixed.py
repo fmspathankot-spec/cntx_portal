@@ -1,6 +1,6 @@
 """
 Tejas Router Monitoring Script v2 - FIXED
-With Centralized Credentials Support
+With Centralized Credentials Support and Environment Variables
 """
 
 import paramiko
@@ -13,6 +13,10 @@ from datetime import datetime
 import logging
 import json
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Create logs directory if not exists
 if not os.path.exists('logs'):
@@ -29,14 +33,20 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Database configuration
+# Database configuration from environment variables
 DB_CONFIG = {
-    'host': 'localhost',
-    'port': 5432,
-    'database': 'cntx_portal',
-    'user': 'postgres',
-    'password': 'your_password'  # <-- CHANGE THIS
+    'host': os.getenv('DB_HOST', 'localhost'),
+    'port': int(os.getenv('DB_PORT', '5432')),
+    'database': os.getenv('DB_NAME', 'cntx_portal'),
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD')
 }
+
+# Validate DB password
+if not DB_CONFIG['password']:
+    logger.error("❌ DB_PASSWORD not set in environment variables!")
+    logger.error("💡 Create .env file with: DB_PASSWORD=your_password")
+    exit(1)
 
 class TejasCommandParser:
     """Parse Tejas router command outputs"""
@@ -371,7 +381,7 @@ class TejasRouterMonitor:
         except Exception as e:
             logger.error(f"❌ Error monitoring {hostname}: {e}")
         
-        return results  # <-- FIXED: Correct indentation
+        return results
     
     @staticmethod
     def monitor_all_routers(db_manager):
@@ -429,7 +439,8 @@ def display_results(all_results):
 
 def main():
     """Main execution"""
-    logger.info("🚀 Starting Tejas Router Monitoring v2")
+    logger.info("🚀 Starting Tejas Router Monitoring v2 (Environment Variables)")
+    logger.info(f"📊 Database: {DB_CONFIG['database']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}")
     
     db_manager = DatabaseManager(DB_CONFIG)
     
