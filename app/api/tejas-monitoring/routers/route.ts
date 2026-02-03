@@ -27,7 +27,7 @@ export async function GET() {
       count: result.rows.length
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Error fetching routers:', error);
     return NextResponse.json(
       { 
