@@ -28,7 +28,7 @@ export async function GET() {
       }
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Database connection test failed:', error);
     return NextResponse.json(
       { 
