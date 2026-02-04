@@ -9,6 +9,7 @@ import {
   useSFPStats 
 } from '../hooks/useTejasMonitoring';
 import RouterSelector from './components/RouterSelector';
+import AllRoutersStatus from './components/AllRoutersStatus';
 import OSPFNeighborsCard from './components/OSPFNeighborsCard';
 import BGPSummaryCard from './components/BGPSummaryCard';
 import SFPMonitoringCard from './components/SFPMonitoringCard';
@@ -17,13 +18,14 @@ import ErrorAlert from './components/ErrorAlert';
 
 export default function TejasMonitoringDashboard() {
   const [selectedRouter, setSelectedRouter] = useState(null);
+  const [showAllStatus, setShowAllStatus] = useState(true);
   
   // Fetch data using hooks
   const { data: routers, isLoading: routersLoading, error: routersError } = useTejasRouters();
-  const { data: ospfData, isLoading: ospfLoading } = useOSPFNeighbors(selectedRouter?.id);
-  const { data: bgpData, isLoading: bgpLoading } = useBGPSummary(selectedRouter?.id);
-  const { data: sfpInfo, isLoading: sfpInfoLoading } = useSFPInfo(selectedRouter?.id);
-  const { data: sfpStats, isLoading: sfpStatsLoading } = useSFPStats(selectedRouter?.id);
+  const { data: ospfData, isLoading: ospfLoading } = useOSPFNeighbors(selectedRouter?.id, false);
+  const { data: bgpData, isLoading: bgpLoading } = useBGPSummary(selectedRouter?.id, false);
+  const { data: sfpInfo, isLoading: sfpInfoLoading } = useSFPInfo(selectedRouter?.id, false);
+  const { data: sfpStats, isLoading: sfpStatsLoading } = useSFPStats(selectedRouter?.id, false);
   
   if (routersLoading) {
     return (
@@ -57,11 +59,17 @@ export default function TejasMonitoringDashboard() {
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Auto-refresh indicator */}
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span>Auto-refresh enabled</span>
-              </div>
+              {/* Toggle All Status View */}
+              <button
+                onClick={() => setShowAllStatus(!showAllStatus)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  showAllStatus
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                {showAllStatus ? '📊 Status View' : '📋 Show Status'}
+              </button>
               
               {/* Last update time */}
               <div className="text-sm text-gray-500">
@@ -74,6 +82,13 @@ export default function TejasMonitoringDashboard() {
       
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* All Routers Status Dashboard */}
+        {showAllStatus && (
+          <div className="mb-6">
+            <AllRoutersStatus />
+          </div>
+        )}
+        
         {/* Router Selector */}
         <div className="mb-6">
           <RouterSelector 
