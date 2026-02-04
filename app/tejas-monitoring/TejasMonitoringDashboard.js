@@ -3,11 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { 
-  useTejasRouters, 
-  useOSPFNeighbors, 
-  useBGPSummary, 
-  useSFPInfo, 
-  useSFPStats 
+  useTejasRouters
 } from '../hooks/useTejasMonitoring';
 import RouterSelector from './components/RouterSelector';
 import OSPFNeighborsCard from './components/OSPFNeighborsCard';
@@ -18,13 +14,101 @@ import ErrorAlert from './components/ErrorAlert';
 
 export default function TejasMonitoringDashboard() {
   const [selectedRouter, setSelectedRouter] = useState(null);
+  const [ospfData, setOspfData] = useState(null);
+  const [bgpData, setBgpData] = useState(null);
+  const [sfpInfo, setSfpInfo] = useState(null);
+  const [sfpStats, setSfpStats] = useState(null);
+  const [loading, setLoading] = useState({
+    ospf: false,
+    bgp: false,
+    sfp: false
+  });
+  const [errors, setErrors] = useState({
+    ospf: null,
+    bgp: null,
+    sfp: null
+  });
   
-  // Fetch data using hooks (disabled auto-fetch, only on-demand)
+  // Fetch routers list
   const { data: routers, isLoading: routersLoading, error: routersError } = useTejasRouters();
-  const { data: ospfData, isLoading: ospfLoading } = useOSPFNeighbors(selectedRouter?.id, false);
-  const { data: bgpData, isLoading: bgpLoading } = useBGPSummary(selectedRouter?.id, false);
-  const { data: sfpInfo, isLoading: sfpInfoLoading } = useSFPInfo(selectedRouter?.id, false);
-  const { data: sfpStats, isLoading: sfpStatsLoading } = useSFPStats(selectedRouter?.id, false);
+  
+  // Fetch live data function
+  const fetchLiveData = async () => {
+    if (!selectedRouter) return;
+    
+    // Reset data
+    setOspfData(null);
+    setBgpData(null);
+    setSfpInfo(null);
+    setSfpStats(null);
+    setErrors({ ospf: null, bgp: null, sfp: null });
+    
+    // Set all loading
+    setLoading({ ospf: true, bgp: true, sfp: true });
+    
+    // Fetch OSPF
+    fetch(`/api/tejas/live/ospf?routerId=${selectedRouter.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setOspfData(data);
+        } else {
+          setErrors(prev => ({ ...prev, ospf: data.error || 'Failed to fetch OSPF data' }));
+        }
+      })
+      .catch(err => {
+        setErrors(prev => ({ ...prev, ospf: err.message }));
+      })
+      .finally(() => {
+        setLoading(prev => ({ ...prev, ospf: false }));
+      });
+    
+    // Fetch BGP
+    fetch(`/api/tejas/live/bgp?routerId=${selectedRouter.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setBgpData(data);
+        } else {
+          setErrors(prev => ({ ...prev, bgp: data.error || 'Failed to fetch BGP data' }));
+        }
+      })
+      .catch(err => {
+        setErrors(prev => ({ ...prev, bgp: err.message }));
+      })
+      .finally(() => {
+        setLoading(prev => ({ ...prev, bgp: false }));
+      });
+    
+    // Fetch SFP Info
+    fetch(`/api/tejas/live/sfp?routerId=${selectedRouter.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setSfpInfo(data.data?.sfp_info || []);
+          setSfpStats(data.data?.sfp_stats || []);
+        } else {
+          setErrors(prev => ({ ...prev, sfp: data.error || 'Failed to fetch SFP data' }));
+        }
+      })
+      .catch(err => {
+        setErrors(prev => ({ ...prev, sfp: err.message }));
+      })
+      .finally(() => {
+        setLoading(prev => ({ ...prev, sfp: false }));
+      });
+  };
+  
+  // Handle router selection
+  const handleRouterSelect = (router) => {
+    setSelectedRouter(router);
+    // Clear previous data
+    setOspfData(null);
+    setBgpData(null);
+    setSfpInfo(null);
+    setSfpStats(null);
+    setErrors({ ospf: null, bgp: null, sfp: null });
+  };
   
   if (routersLoading) {
     return (
@@ -61,11 +145,35 @@ export default function TejasMonitoringDashboard() {
               {/* Node Status Link */}
               <Link
                 href="/tejas-monitoring/status"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2"
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium flex items-center space-x-2"
               >
                 <span>🔌</span>
                 <span>Node Status</span>
               </Link>
+              
+              {/* Fetch Live Button */}
+              {selectedRouter && (
+                <button
+                  onClick={fetchLiveData}
+                  disabled={loading.ospf || loading.bgp || loading.sfp}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {(loading.ospf || loading.bgp || loading.sfp) ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Fetching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      <span>Fetch Live Data</span>
+                    </>
+                  )}
+                </button>
+              )}
               
               {/* Last update time */}
               <div className="text-sm text-gray-500">
@@ -83,24 +191,41 @@ export default function TejasMonitoringDashboard() {
           <RouterSelector 
             routers={routers || []}
             selectedRouter={selectedRouter}
-            onSelectRouter={setSelectedRouter}
+            onSelectRouter={handleRouterSelect}
           />
         </div>
         
         {/* Dashboard Grid */}
         {selectedRouter ? (
           <div className="space-y-6">
+            {/* Info Banner */}
+            {!ospfData && !bgpData && !sfpInfo && !loading.ospf && !loading.bgp && !loading.sfp && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">💡</span>
+                  <div>
+                    <div className="text-blue-900 font-medium">Ready to fetch live data</div>
+                    <div className="text-blue-700 text-sm mt-1">
+                      Click the <strong>"Fetch Live Data"</strong> button above to get real-time OSPF, BGP, and SFP information from {selectedRouter.hostname}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Row 1: OSPF and BGP */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <OSPFNeighborsCard 
                 data={ospfData}
-                isLoading={ospfLoading}
+                isLoading={loading.ospf}
+                error={errors.ospf}
                 routerName={selectedRouter.hostname}
               />
               
               <BGPSummaryCard 
                 data={bgpData}
-                isLoading={bgpLoading}
+                isLoading={loading.bgp}
+                error={errors.bgp}
                 routerName={selectedRouter.hostname}
               />
             </div>
@@ -109,8 +234,9 @@ export default function TejasMonitoringDashboard() {
             <SFPMonitoringCard 
               sfpInfo={sfpInfo}
               sfpStats={sfpStats}
-              isLoadingInfo={sfpInfoLoading}
-              isLoadingStats={sfpStatsLoading}
+              isLoadingInfo={loading.sfp}
+              isLoadingStats={loading.sfp}
+              error={errors.sfp}
               routerName={selectedRouter.hostname}
             />
           </div>
