@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { 
   useTejasRouters, 
   useOSPFNeighbors, 
@@ -9,7 +10,6 @@ import {
   useSFPStats 
 } from '../hooks/useTejasMonitoring';
 import RouterSelector from './components/RouterSelector';
-import AllRoutersStatus from './components/AllRoutersStatus';
 import OSPFNeighborsCard from './components/OSPFNeighborsCard';
 import BGPSummaryCard from './components/BGPSummaryCard';
 import SFPMonitoringCard from './components/SFPMonitoringCard';
@@ -18,9 +18,8 @@ import ErrorAlert from './components/ErrorAlert';
 
 export default function TejasMonitoringDashboard() {
   const [selectedRouter, setSelectedRouter] = useState(null);
-  const [showAllStatus, setShowAllStatus] = useState(true);
   
-  // Fetch data using hooks
+  // Fetch data using hooks (disabled auto-fetch, only on-demand)
   const { data: routers, isLoading: routersLoading, error: routersError } = useTejasRouters();
   const { data: ospfData, isLoading: ospfLoading } = useOSPFNeighbors(selectedRouter?.id, false);
   const { data: bgpData, isLoading: bgpLoading } = useBGPSummary(selectedRouter?.id, false);
@@ -54,26 +53,23 @@ export default function TejasMonitoringDashboard() {
                 🌐 Tejas Router Monitoring
               </h1>
               <p className="mt-1 text-sm text-gray-500">
-                Real-time monitoring of OSPF, BGP, and SFP parameters
+                Live monitoring of OSPF, BGP, and SFP parameters
               </p>
             </div>
             
             <div className="flex items-center space-x-4">
-              {/* Toggle All Status View */}
-              <button
-                onClick={() => setShowAllStatus(!showAllStatus)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showAllStatus
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+              {/* Node Status Link */}
+              <Link
+                href="/tejas-monitoring/status"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center space-x-2"
               >
-                {showAllStatus ? '📊 Status View' : '📋 Show Status'}
-              </button>
+                <span>🔌</span>
+                <span>Node Status</span>
+              </Link>
               
               {/* Last update time */}
               <div className="text-sm text-gray-500">
-                Last updated: {new Date().toLocaleTimeString()}
+                {new Date().toLocaleTimeString()}
               </div>
             </div>
           </div>
@@ -82,13 +78,6 @@ export default function TejasMonitoringDashboard() {
       
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* All Routers Status Dashboard */}
-        {showAllStatus && (
-          <div className="mb-6">
-            <AllRoutersStatus />
-          </div>
-        )}
-        
         {/* Router Selector */}
         <div className="mb-6">
           <RouterSelector 
@@ -135,8 +124,11 @@ export default function TejasMonitoringDashboard() {
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Select a Router
             </h3>
-            <p className="text-gray-500">
-              Choose a router from the dropdown above to view monitoring data
+            <p className="text-gray-500 mb-4">
+              Choose a router from the dropdown above to view live monitoring data
+            </p>
+            <p className="text-sm text-gray-400">
+              💡 Tip: Check <Link href="/tejas-monitoring/status" className="text-blue-600 hover:underline">Node Status</Link> to see which routers are online
             </p>
           </div>
         )}
