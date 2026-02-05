@@ -1,12 +1,13 @@
 /**
- * API Route: Get live SFP info and stats from router
+ * API Route: Get live SFP info from router
  * GET /api/tejas/live/sfp?routerId=1
+ * Fetches SFP data for all monitored interfaces using database-configured commands
  */
 
 import { NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
-import { getSFPInfo, getSFPStats } from '../../../../../lib/ssh-client';
-import { parseSFPInfo, parseSFPStats } from '../../../../../lib/tejas-parser';
+import { getAllSFPInfo } from '../../../../../lib/ssh-client';
+import { parseSFPInfo } from '../../../../../lib/tejas-parser';
 
 export async function GET(request) {
   try {
@@ -56,18 +57,49 @@ export async function GET(request) {
       );
     }
     
-    // Fetch SFP data via SSH
+    // Fetch SFP data via SSH for all monitored interfaces
     try {
-      // Fetch both SFP info and stats in parallel
-      const [sfpInfoOutput, sfpStatsOutput] = await Promise.all([
-        getSFPInfo(router),
-        getSFPStats(router)
-      ]);
+      const sfpDataArray = await getAllSFPInfo(router);
       
-      const sfpInfo = parseSFPInfo(sfpInfoOutput);
-      const sfpStats = parseSFPStats(sfpStatsOutput);
+      if (sfpDataArray.length === 0) {
+        return NextResponse.json({
+          success: true,
+          router: {
+            id: router.id,
+            hostname: router.hostname,
+            ip_address: router.ip_address
+          },
+          data: {
+            interfaces: [],
+            message: 'No monitored interfaces found'
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
       
-      console.log(`[SFP] Success: ${sfpInfo.length} interfaces found`);
+      // Parse each interface's SFP data
+      const parsedData = sfpDataArray.map(item => {
+        if (item.error) {
+          return {
+            interface_id: item.interface_id,
+            interface_name: item.interface_name,
+            interface_label: item.interface_label,
+            error: item.error
+          };
+        }
+        
+        const parsed = parseSFPInfo(item.output);
+        
+        return {
+          interface_id: item.interface_id,
+          interface_name: item.interface_name,
+          interface_label: item.interface_label,
+          sfp_command: item.sfp_command,
+          ...parsed
+        };
+      });
+      
+      console.log(`[SFP] Success: ${parsedData.length} interfaces processed`);
       
       return NextResponse.json({
         success: true,
@@ -77,8 +109,8 @@ export async function GET(request) {
           ip_address: router.ip_address
         },
         data: {
-          sfp_info: sfpInfo,
-          sfp_stats: sfpStats
+          interfaces: parsedData,
+          total_count: parsedData.length
         },
         timestamp: new Date().toISOString()
       });
