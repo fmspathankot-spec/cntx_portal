@@ -62,6 +62,10 @@ def execute_ssh_commands(router, commands):
     Returns dict with command outputs
     """
     try:
+        print(f"\n{'='*60}")
+        print(f"[SSH] Connecting to {router['hostname']} ({router['ip_address']})")
+        print(f"{'='*60}")
+        
         # Create SSH client
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -77,14 +81,18 @@ def execute_ssh_commands(router, commands):
             allow_agent=False
         )
         
+        print(f"[SSH] ✅ Connected successfully!")
+        
         # Get shell
         shell = ssh.invoke_shell()
         time.sleep(1)
         
         # Clear initial output
-        shell.recv(65535)
+        initial_output = shell.recv(65535).decode('utf-8', errors='ignore')
+        print(f"[SSH] Initial prompt: {initial_output[:100]}...")
         
         # Configure terminal
+        print(f"[SSH] Configuring terminal...")
         shell.send('conf t\n')
         time.sleep(0.5)
         shell.send('set cli pagination off\n')
@@ -93,18 +101,27 @@ def execute_ssh_commands(router, commands):
         time.sleep(0.5)
         
         # Clear configuration output
-        shell.recv(65535)
+        config_output = shell.recv(65535).decode('utf-8', errors='ignore')
+        print(f"[SSH] Config output: {config_output[:100]}...")
         
         # Execute commands and collect outputs
         outputs = {}
         for cmd_name, cmd in commands.items():
+            print(f"\n[SSH] Executing: {cmd}")
             shell.send(f'{cmd}\n')
             time.sleep(2)  # Wait for command execution
             
             output = shell.recv(65535).decode('utf-8', errors='ignore')
             outputs[cmd_name] = output
+            
+            print(f"[SSH] Output length: {len(output)} bytes")
+            print(f"[SSH] First 500 chars of output:")
+            print(f"{'-'*60}")
+            print(output[:500])
+            print(f"{'-'*60}")
         
         # Exit
+        print(f"\n[SSH] Closing connection...")
         shell.send('exit\n')
         time.sleep(0.5)
         
@@ -112,35 +129,63 @@ def execute_ssh_commands(router, commands):
         shell.close()
         ssh.close()
         
+        print(f"[SSH] ✅ Connection closed")
+        print(f"{'='*60}\n")
+        
         return outputs
         
     except Exception as e:
+        print(f"[SSH] ❌ Error: {str(e)}")
         raise Exception(f"SSH Error: {str(e)}")
 
 def parse_ospf_output(output):
     """Parse OSPF neighbor output"""
+    print(f"\n[PARSE] Parsing OSPF output...")
+    print(f"[PARSE] Output length: {len(output)} bytes")
+    print(f"[PARSE] Full output:")
+    print(f"{'-'*60}")
+    print(output)
+    print(f"{'-'*60}")
+    
     neighbors = []
     lines = output.split('\n')
     
-    for line in lines:
+    print(f"[PARSE] Total lines: {len(lines)}")
+    
+    for i, line in enumerate(lines):
         # Match OSPF neighbor lines
+        # Example: 10.125.0.9    1   Full/  -  00:00:35  10.125.0.9  GigabitEthernet0/0
         match = re.search(r'(\d+\.\d+\.\d+\.\d+)\s+\d+\s+(\w+)/\s*-\s+(\d+:\d+:\d+)\s+(\d+\.\d+\.\d+\.\d+)\s+(\S+)', line)
         if match:
-            neighbors.append({
+            neighbor = {
                 'neighbor_id': match.group(1),
                 'state': match.group(2),
                 'dead_time': match.group(3),
                 'address': match.group(4),
                 'interface': match.group(5)
-            })
+            }
+            neighbors.append(neighbor)
+            print(f"[PARSE] ✅ Line {i}: Found neighbor: {neighbor}")
+        else:
+            # Try alternate regex patterns
+            # Pattern 2: Without interface
+            match2 = re.search(r'(\d+\.\d+\.\d+\.\d+).*?(\w+).*?(\d+:\d+:\d+)', line)
+            if match2:
+                print(f"[PARSE] ⚠️  Line {i}: Partial match: {line.strip()}")
+    
+    print(f"[PARSE] Total neighbors found: {len(neighbors)}")
     
     return {
         'neighbor_count': len(neighbors),
-        'neighbors': neighbors
+        'neighbors': neighbors,
+        'raw_output': output  # Include raw output for debugging
     }
 
 def parse_bgp_output(output):
     """Parse BGP summary output"""
+    print(f"\n[PARSE] Parsing BGP output...")
+    print(f"[PARSE] Output length: {len(output)} bytes")
+    
     peers = []
     lines = output.split('\n')
     
@@ -157,16 +202,22 @@ def parse_bgp_output(output):
                 'state_pfxrcd': match.group(6)
             })
     
+    print(f"[PARSE] Total BGP peers found: {len(peers)}")
+    
     return {
         'peer_count': len(peers),
-        'peers': peers
+        'peers': peers,
+        'raw_output': output  # Include raw output for debugging
     }
 
 def parse_sfp_output(outputs):
     """Parse SFP outputs for multiple interfaces"""
+    print(f"\n[PARSE] Parsing SFP outputs...")
+    
     interfaces = []
     
     for interface_name, output in outputs.items():
+        print(f"[PARSE] Processing interface: {interface_name}")
         lines = output.split('\n')
         
         sfp_data = {
@@ -201,6 +252,7 @@ def parse_sfp_output(outputs):
                     sfp_data['tx_bias'] = float(match.group(1))
         
         interfaces.append(sfp_data)
+        print(f"[PARSE] SFP data: {sfp_data}")
     
     return {'interfaces': interfaces}
 
@@ -295,6 +347,7 @@ def get_all_monitoring_data():
         })
         
     except Exception as e:
+        print(f"[ERROR] {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -326,6 +379,7 @@ def get_ospf_data():
         })
         
     except Exception as e:
+        print(f"[ERROR] {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/tejas/live/bgp', methods=['GET'])
@@ -353,6 +407,7 @@ def get_bgp_data():
         })
         
     except Exception as e:
+        print(f"[ERROR] {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/tejas/live/sfp', methods=['GET'])
@@ -390,6 +445,7 @@ def get_sfp_data():
         })
         
     except Exception as e:
+        print(f"[ERROR] {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
