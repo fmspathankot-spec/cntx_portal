@@ -20,6 +20,8 @@ export async function GET(request) {
       );
     }
     
+    console.log(`[BGP] Fetching live data for router ID: ${routerId}`);
+    
     // Get router from database
     const routerResult = await query(`
       SELECT 
@@ -27,9 +29,9 @@ export async function GET(request) {
         r.hostname,
         r.ip_address,
         r.device_type,
+        r.ssh_port,
         rc.username,
-        rc.password,
-        rc.ssh_port
+        rc.password
       FROM routers r
       LEFT JOIN router_credentials rc ON r.credential_id = rc.id
       WHERE r.id = $1 AND r.is_active = true
@@ -44,6 +46,8 @@ export async function GET(request) {
     
     const router = routerResult.rows[0];
     
+    console.log(`[BGP] Router: ${router.hostname} (${router.ip_address})`);
+    
     // Check if credentials exist
     if (!router.password) {
       return NextResponse.json(
@@ -52,35 +56,43 @@ export async function GET(request) {
       );
     }
     
-    console.log(`[BGP] Fetching live data from ${router.hostname}...`);
-    
-    // Get live data via SSH
-    const rawOutput = await getBGPSummary(router);
-    
-    // Parse output
-    const parsedData = parseBGPSummary(rawOutput);
-    
-    console.log(`[BGP] Router ID: ${parsedData.router_id}, Local AS: ${parsedData.local_as}`);
-    
-    return NextResponse.json({
-      success: true,
-      router: {
-        id: router.id,
-        hostname: router.hostname,
-        ip_address: router.ip_address
-      },
-      data: parsedData,
-      fetched_at: new Date().toISOString()
-    });
+    // Fetch BGP summary via SSH
+    try {
+      const bgpOutput = await getBGPSummary(router);
+      const bgpData = parseBGPSummary(bgpOutput);
+      
+      console.log(`[BGP] Success: ${bgpData.peer_count} peers found`);
+      
+      return NextResponse.json({
+        success: true,
+        router: {
+          id: router.id,
+          hostname: router.hostname,
+          ip_address: router.ip_address
+        },
+        data: bgpData,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (sshError) {
+      console.error('[BGP] SSH Error:', sshError.message);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Failed to fetch BGP data',
+          message: sshError.message 
+        },
+        { status: 500 }
+      );
+    }
     
   } catch (error) {
     console.error('[BGP] Error fetching live data:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to fetch BGP data',
-        message: error.message,
-        details: error.toString()
+        error: 'Internal server error',
+        message: error.message 
       },
       { status: 500 }
     );
