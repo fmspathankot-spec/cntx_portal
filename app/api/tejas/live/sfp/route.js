@@ -1,5 +1,5 @@
 /**
- * API Route: Get live SFP data from router interfaces
+ * API Route: Get live SFP info and stats from router
  * GET /api/tejas/live/sfp?routerId=1
  */
 
@@ -20,6 +20,8 @@ export async function GET(request) {
       );
     }
     
+    console.log(`[SFP] Fetching live data for router ID: ${routerId}`);
+    
     // Get router from database
     const routerResult = await query(`
       SELECT 
@@ -27,9 +29,9 @@ export async function GET(request) {
         r.hostname,
         r.ip_address,
         r.device_type,
+        r.ssh_port,
         rc.username,
-        rc.password,
-        rc.ssh_port
+        rc.password
       FROM routers r
       LEFT JOIN router_credentials rc ON r.credential_id = rc.id
       WHERE r.id = $1 AND r.is_active = true
@@ -44,6 +46,8 @@ export async function GET(request) {
     
     const router = routerResult.rows[0];
     
+    console.log(`[SFP] Router: ${router.hostname} (${router.ip_address})`);
+    
     // Check if credentials exist
     if (!router.password) {
       return NextResponse.json(
@@ -52,15 +56,19 @@ export async function GET(request) {
       );
     }
     
-    // Get monitored interfaces
-    const interfacesResult = await query(`
-      SELECT id, interface_name, interface_label, interface_type
-      FROM router_interfaces
-      WHERE router_id = $1 AND is_monitored = true
-      ORDER BY interface_name
-    `, [routerId]);
-    
-    if (interfacesResult.rows.length === 0) {
+    // Fetch SFP data via SSH
+    try {
+      // Fetch both SFP info and stats in parallel
+      const [sfpInfoOutput, sfpStatsOutput] = await Promise.all([
+        getSFPInfo(router),
+        getSFPStats(router)
+      ]);
+      
+      const sfpInfo = parseSFPInfo(sfpInfoOutput);
+      const sfpStats = parseSFPStats(sfpStatsOutput);
+      
+      console.log(`[SFP] Success: ${sfpInfo.length} interfaces found`);
+      
       return NextResponse.json({
         success: true,
         router: {
@@ -68,72 +76,32 @@ export async function GET(request) {
           hostname: router.hostname,
           ip_address: router.ip_address
         },
-        interfaces: [],
-        message: 'No monitored interfaces found'
+        data: {
+          sfp_info: sfpInfo,
+          sfp_stats: sfpStats
+        },
+        timestamp: new Date().toISOString()
       });
+      
+    } catch (sshError) {
+      console.error('[SFP] SSH Error:', sshError.message);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Failed to fetch SFP data',
+          message: sshError.message 
+        },
+        { status: 500 }
+      );
     }
-    
-    console.log(`[SFP] Fetching live data from ${router.hostname} for ${interfacesResult.rows.length} interfaces...`);
-    
-    // Fetch SFP data for each interface
-    const interfacesData = await Promise.all(
-      interfacesResult.rows.map(async (iface) => {
-        try {
-          // Get SFP info
-          const infoOutput = await getSFPInfo(router, iface.interface_name);
-          const sfpInfo = parseSFPInfo(infoOutput);
-          
-          // Get SFP stats
-          const statsOutput = await getSFPStats(router, iface.interface_name);
-          const sfpStats = parseSFPStats(statsOutput);
-          
-          return {
-            id: iface.id,
-            name: iface.interface_name,
-            label: iface.interface_label,
-            type: iface.interface_type,
-            sfp_info: sfpInfo,
-            sfp_stats: sfpStats,
-            status: 'success'
-          };
-        } catch (error) {
-          console.error(`[SFP] Error fetching data for ${iface.interface_name}:`, error.message);
-          return {
-            id: iface.id,
-            name: iface.interface_name,
-            label: iface.interface_label,
-            type: iface.interface_type,
-            sfp_info: null,
-            sfp_stats: null,
-            status: 'error',
-            error: error.message
-          };
-        }
-      })
-    );
-    
-    const successCount = interfacesData.filter(i => i.status === 'success').length;
-    console.log(`[SFP] Successfully fetched ${successCount}/${interfacesData.length} interfaces`);
-    
-    return NextResponse.json({
-      success: true,
-      router: {
-        id: router.id,
-        hostname: router.hostname,
-        ip_address: router.ip_address
-      },
-      interfaces: interfacesData,
-      fetched_at: new Date().toISOString()
-    });
     
   } catch (error) {
     console.error('[SFP] Error fetching live data:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to fetch SFP data',
-        message: error.message,
-        details: error.toString()
+        error: 'Internal server error',
+        message: error.message 
       },
       { status: 500 }
     );
