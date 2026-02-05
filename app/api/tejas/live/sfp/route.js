@@ -1,13 +1,14 @@
 /**
  * API Route: Get live SFP info from router
  * GET /api/tejas/live/sfp?routerId=1
- * Fetches SFP data for all monitored interfaces using database-configured commands
+ * 
+ * This is a proxy to Python backend which handles SSH operations
+ * Python backend is more reliable for SSH connections
  */
 
 import { NextResponse } from 'next/server';
-import { query } from '../../../../../lib/db';
-import { getAllSFPInfo } from '../../../../../lib/ssh-client';
-import { parseSFPInfo } from '../../../../../lib/tejas-parser';
+
+const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:8000';
 
 export async function GET(request) {
   try {
@@ -21,115 +22,69 @@ export async function GET(request) {
       );
     }
     
-    console.log(`[SFP] Fetching live data for router ID: ${routerId}`);
+    console.log(`[SFP-PROXY] Forwarding request to Python backend for router ID: ${routerId}`);
     
-    // Get router from database
-    const routerResult = await query(`
-      SELECT 
-        r.id,
-        r.hostname,
-        r.ip_address,
-        r.device_type,
-        r.ssh_port,
-        rc.username,
-        rc.password
-      FROM routers r
-      LEFT JOIN router_credentials rc ON r.credential_id = rc.id
-      WHERE r.id = $1 AND r.is_active = true
-    `, [routerId]);
+    // Call Python backend
+    const pythonUrl = `${PYTHON_BACKEND_URL}/api/tejas/live/sfp?routerId=${routerId}`;
     
-    if (routerResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Router not found or inactive' },
-        { status: 404 }
-      );
-    }
-    
-    const router = routerResult.rows[0];
-    
-    console.log(`[SFP] Router: ${router.hostname} (${router.ip_address})`);
-    
-    // Check if credentials exist
-    if (!router.password) {
-      return NextResponse.json(
-        { success: false, error: 'Router credentials not configured' },
-        { status: 400 }
-      );
-    }
-    
-    // Fetch SFP data via SSH for all monitored interfaces
     try {
-      const sfpDataArray = await getAllSFPInfo(router);
+      const response = await fetch(pythonUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Timeout after 30 seconds
+        signal: AbortSignal.timeout(30000)
+      });
       
-      if (sfpDataArray.length === 0) {
-        return NextResponse.json({
-          success: true,
-          router: {
-            id: router.id,
-            hostname: router.hostname,
-            ip_address: router.ip_address
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error(`[SFP-PROXY] Python backend error:`, errorData);
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Python backend error',
+            message: errorData.error || errorData.message || 'Failed to fetch SFP data',
+            backend_status: response.status
           },
-          data: {
-            interfaces: [],
-            message: 'No monitored interfaces found'
-          },
-          timestamp: new Date().toISOString()
-        });
+          { status: response.status }
+        );
       }
       
-      // Parse each interface's SFP data
-      const parsedData = sfpDataArray.map(item => {
-        if (item.error) {
-          return {
-            interface_id: item.interface_id,
-            interface_name: item.interface_name,
-            interface_label: item.interface_label,
-            error: item.error
-          };
-        }
-        
-        const parsed = parseSFPInfo(item.output);
-        
-        return {
-          interface_id: item.interface_id,
-          interface_name: item.interface_name,
-          interface_label: item.interface_label,
-          sfp_command: item.sfp_command,
-          raw_output: item.output, // For debugging
-          ...parsed
-        };
-      });
+      const data = await response.json();
+      console.log(`[SFP-PROXY] Success: Received data from Python backend`);
       
-      console.log(`[SFP] Success: ${parsedData.length} interfaces processed`);
+      return NextResponse.json(data);
       
-      return NextResponse.json({
-        success: true,
-        router: {
-          id: router.id,
-          hostname: router.hostname,
-          ip_address: router.ip_address
-        },
-        data: {
-          interfaces: parsedData,
-          total_count: parsedData.length
-        },
-        timestamp: new Date().toISOString()
-      });
+    } catch (fetchError) {
+      console.error('[SFP-PROXY] Error calling Python backend:', fetchError.message);
       
-    } catch (sshError) {
-      console.error('[SFP] SSH Error:', sshError.message);
+      // Check if Python backend is running
+      if (fetchError.message.includes('ECONNREFUSED') || fetchError.message.includes('fetch failed')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Python backend not available',
+            message: `Cannot connect to Python backend at ${PYTHON_BACKEND_URL}. Please ensure Python backend is running.`,
+            hint: 'Start Python backend: cd backend && python app.py'
+          },
+          { status: 503 }
+        );
+      }
+      
       return NextResponse.json(
         { 
           success: false, 
           error: 'Failed to fetch SFP data',
-          message: sshError.message 
+          message: fetchError.message 
         },
         { status: 500 }
       );
     }
     
   } catch (error) {
-    console.error('[SFP] Error fetching live data:', error);
+    console.error('[SFP-PROXY] Error:', error);
     return NextResponse.json(
       { 
         success: false, 
