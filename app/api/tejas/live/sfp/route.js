@@ -1,12 +1,13 @@
 /**
- * API Route: Test SSH Connection (SFP endpoint)
+ * API Route: Get live SFP info from router
  * GET /api/tejas/live/sfp?routerId=1
- * TESTING MODE: Only tests SSH connection, no actual SFP command
+ * Fetches SFP data for all monitored interfaces using database-configured commands
  */
 
 import { NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
-import { testConnection } from '../../../../../lib/ssh-client';
+import { getAllSFPInfo } from '../../../../../lib/ssh-client';
+import { parseSFPInfo } from '../../../../../lib/tejas-parser';
 
 export async function GET(request) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request) {
       );
     }
     
-    console.log(`[SFP-TEST] Testing connection for router ID: ${routerId}`);
+    console.log(`[SFP] Fetching live data for router ID: ${routerId}`);
     
     // Get router from database
     const routerResult = await query(`
@@ -46,9 +47,7 @@ export async function GET(request) {
     
     const router = routerResult.rows[0];
     
-    console.log(`[SFP-TEST] Router: ${router.hostname} (${router.ip_address})`);
-    console.log(`[SFP-TEST] Username: ${router.username}`);
-    console.log(`[SFP-TEST] SSH Port: ${router.ssh_port || 22}`);
+    console.log(`[SFP] Router: ${router.hostname} (${router.ip_address})`);
     
     // Check if credentials exist
     if (!router.password) {
@@ -58,64 +57,79 @@ export async function GET(request) {
       );
     }
     
-    // Test SSH connection
+    // Fetch SFP data via SSH for all monitored interfaces
     try {
-      console.log(`[SFP-TEST] Testing SSH connection...`);
-      const isConnected = await testConnection(router);
+      const sfpDataArray = await getAllSFPInfo(router);
       
-      if (isConnected) {
-        console.log(`[SFP-TEST] ✅ SSH connection successful!`);
-        
+      if (sfpDataArray.length === 0) {
         return NextResponse.json({
           success: true,
-          message: 'SSH connection test successful',
           router: {
             id: router.id,
             hostname: router.hostname,
-            ip_address: router.ip_address,
-            username: router.username,
-            ssh_port: router.ssh_port || 22
+            ip_address: router.ip_address
           },
-          test_result: {
-            connection: 'SUCCESS',
-            message: 'Router is accessible via SSH'
+          data: {
+            interfaces: [],
+            message: 'No monitored interfaces found'
           },
           timestamp: new Date().toISOString()
         });
-        
-      } else {
-        console.log(`[SFP-TEST] ❌ SSH connection failed`);
-        
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'SSH connection test failed',
-            message: 'Could not connect to router. Check IP, credentials, and network connectivity.',
-            router: {
-              id: router.id,
-              hostname: router.hostname,
-              ip_address: router.ip_address
-            }
-          },
-          { status: 500 }
-        );
       }
       
+      // Parse each interface's SFP data
+      const parsedData = sfpDataArray.map(item => {
+        if (item.error) {
+          return {
+            interface_id: item.interface_id,
+            interface_name: item.interface_name,
+            interface_label: item.interface_label,
+            error: item.error
+          };
+        }
+        
+        const parsed = parseSFPInfo(item.output);
+        
+        return {
+          interface_id: item.interface_id,
+          interface_name: item.interface_name,
+          interface_label: item.interface_label,
+          sfp_command: item.sfp_command,
+          raw_output: item.output, // For debugging
+          ...parsed
+        };
+      });
+      
+      console.log(`[SFP] Success: ${parsedData.length} interfaces processed`);
+      
+      return NextResponse.json({
+        success: true,
+        router: {
+          id: router.id,
+          hostname: router.hostname,
+          ip_address: router.ip_address
+        },
+        data: {
+          interfaces: parsedData,
+          total_count: parsedData.length
+        },
+        timestamp: new Date().toISOString()
+      });
+      
     } catch (sshError) {
-      console.error('[SFP-TEST] SSH Error:', sshError.message);
+      console.error('[SFP] SSH Error:', sshError.message);
       return NextResponse.json(
         { 
           success: false, 
-          error: 'SSH connection error',
-          message: sshError.message,
-          details: sshError.toString()
+          error: 'Failed to fetch SFP data',
+          message: sshError.message 
         },
         { status: 500 }
       );
     }
     
   } catch (error) {
-    console.error('[SFP-TEST] Error:', error);
+    console.error('[SFP] Error fetching live data:', error);
     return NextResponse.json(
       { 
         success: false, 
