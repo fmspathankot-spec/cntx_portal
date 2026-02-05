@@ -1,12 +1,12 @@
 /**
- * API Route: Test SSH Connection (BGP endpoint)
+ * API Route: Get live BGP summary from router
  * GET /api/tejas/live/bgp?routerId=1
- * TESTING MODE: Only tests SSH connection, no actual BGP command
  */
 
 import { NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
-import { testConnection } from '../../../../../lib/ssh-client';
+import { getBGPSummary } from '../../../../../lib/ssh-client';
+import { parseBGPSummary } from '../../../../../lib/tejas-parser';
 
 export async function GET(request) {
   try {
@@ -20,7 +20,7 @@ export async function GET(request) {
       );
     }
     
-    console.log(`[BGP-TEST] Testing connection for router ID: ${routerId}`);
+    console.log(`[BGP] Fetching live data for router ID: ${routerId}`);
     
     // Get router from database
     const routerResult = await query(`
@@ -46,9 +46,7 @@ export async function GET(request) {
     
     const router = routerResult.rows[0];
     
-    console.log(`[BGP-TEST] Router: ${router.hostname} (${router.ip_address})`);
-    console.log(`[BGP-TEST] Username: ${router.username}`);
-    console.log(`[BGP-TEST] SSH Port: ${router.ssh_port || 22}`);
+    console.log(`[BGP] Router: ${router.hostname} (${router.ip_address})`);
     
     // Check if credentials exist
     if (!router.password) {
@@ -58,64 +56,39 @@ export async function GET(request) {
       );
     }
     
-    // Test SSH connection
+    // Fetch BGP summary via SSH
     try {
-      console.log(`[BGP-TEST] Testing SSH connection...`);
-      const isConnected = await testConnection(router);
+      const bgpOutput = await getBGPSummary(router);
+      const bgpData = parseBGPSummary(bgpOutput);
       
-      if (isConnected) {
-        console.log(`[BGP-TEST] ✅ SSH connection successful!`);
-        
-        return NextResponse.json({
-          success: true,
-          message: 'SSH connection test successful',
-          router: {
-            id: router.id,
-            hostname: router.hostname,
-            ip_address: router.ip_address,
-            username: router.username,
-            ssh_port: router.ssh_port || 22
-          },
-          test_result: {
-            connection: 'SUCCESS',
-            message: 'Router is accessible via SSH'
-          },
-          timestamp: new Date().toISOString()
-        });
-        
-      } else {
-        console.log(`[BGP-TEST] ❌ SSH connection failed`);
-        
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'SSH connection test failed',
-            message: 'Could not connect to router. Check IP, credentials, and network connectivity.',
-            router: {
-              id: router.id,
-              hostname: router.hostname,
-              ip_address: router.ip_address
-            }
-          },
-          { status: 500 }
-        );
-      }
+      console.log(`[BGP] Success: ${bgpData.peer_count} peers found`);
+      
+      return NextResponse.json({
+        success: true,
+        router: {
+          id: router.id,
+          hostname: router.hostname,
+          ip_address: router.ip_address
+        },
+        data: bgpData,
+        raw_output: bgpOutput, // For debugging
+        timestamp: new Date().toISOString()
+      });
       
     } catch (sshError) {
-      console.error('[BGP-TEST] SSH Error:', sshError.message);
+      console.error('[BGP] SSH Error:', sshError.message);
       return NextResponse.json(
         { 
           success: false, 
-          error: 'SSH connection error',
-          message: sshError.message,
-          details: sshError.toString()
+          error: 'Failed to fetch BGP data',
+          message: sshError.message 
         },
         { status: 500 }
       );
     }
     
   } catch (error) {
-    console.error('[BGP-TEST] Error:', error);
+    console.error('[BGP] Error fetching live data:', error);
     return NextResponse.json(
       { 
         success: false, 
