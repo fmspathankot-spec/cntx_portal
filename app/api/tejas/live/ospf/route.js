@@ -1,12 +1,14 @@
 /**
  * API Route: Get live OSPF neighbors from router
  * GET /api/tejas/live/ospf?routerId=1
+ * 
+ * This is a proxy to Python backend which handles SSH operations
+ * Python backend is more reliable for SSH connections
  */
 
 import { NextResponse } from 'next/server';
-import { query } from '../../../../../lib/db';
-import { getOSPFNeighbors } from '../../../../../lib/ssh-client';
-import { parseOSPFNeighbors } from '../../../../../lib/tejas-parser';
+
+const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL || 'http://localhost:8000';
 
 export async function GET(request) {
   try {
@@ -20,75 +22,69 @@ export async function GET(request) {
       );
     }
     
-    console.log(`[OSPF] Fetching live data for router ID: ${routerId}`);
+    console.log(`[OSPF-PROXY] Forwarding request to Python backend for router ID: ${routerId}`);
     
-    // Get router from database
-    const routerResult = await query(`
-      SELECT 
-        r.id,
-        r.hostname,
-        r.ip_address,
-        r.device_type,
-        r.ssh_port,
-        rc.username,
-        rc.password
-      FROM routers r
-      LEFT JOIN router_credentials rc ON r.credential_id = rc.id
-      WHERE r.id = $1 AND r.is_active = true
-    `, [routerId]);
+    // Call Python backend
+    const pythonUrl = `${PYTHON_BACKEND_URL}/api/tejas/live/ospf?routerId=${routerId}`;
     
-    if (routerResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Router not found or inactive' },
-        { status: 404 }
-      );
-    }
-    
-    const router = routerResult.rows[0];
-    
-    console.log(`[OSPF] Router: ${router.hostname} (${router.ip_address})`);
-    
-    // Check if credentials exist
-    if (!router.password) {
-      return NextResponse.json(
-        { success: false, error: 'Router credentials not configured' },
-        { status: 400 }
-      );
-    }
-    
-    // Fetch OSPF neighbors via SSH
     try {
-      const ospfOutput = await getOSPFNeighbors(router);
-      const ospfData = parseOSPFNeighbors(ospfOutput);
-      
-      console.log(`[OSPF] Success: ${ospfData.neighbor_count} neighbors found`);
-      
-      return NextResponse.json({
-        success: true,
-        router: {
-          id: router.id,
-          hostname: router.hostname,
-          ip_address: router.ip_address
+      const response = await fetch(pythonUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
         },
-        data: ospfData,
-        raw_output: ospfOutput, // For debugging
-        timestamp: new Date().toISOString()
+        // Timeout after 30 seconds
+        signal: AbortSignal.timeout(30000)
       });
       
-    } catch (sshError) {
-      console.error('[OSPF] SSH Error:', sshError.message);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error(`[OSPF-PROXY] Python backend error:`, errorData);
+        
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Python backend error',
+            message: errorData.error || errorData.message || 'Failed to fetch OSPF data',
+            backend_status: response.status
+          },
+          { status: response.status }
+        );
+      }
+      
+      const data = await response.json();
+      console.log(`[OSPF-PROXY] Success: Received data from Python backend`);
+      
+      return NextResponse.json(data);
+      
+    } catch (fetchError) {
+      console.error('[OSPF-PROXY] Error calling Python backend:', fetchError.message);
+      
+      // Check if Python backend is running
+      if (fetchError.message.includes('ECONNREFUSED') || fetchError.message.includes('fetch failed')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Python backend not available',
+            message: `Cannot connect to Python backend at ${PYTHON_BACKEND_URL}. Please ensure Python backend is running.`,
+            hint: 'Start Python backend: cd backend && python app.py'
+          },
+          { status: 503 }
+        );
+      }
+      
       return NextResponse.json(
         { 
           success: false, 
           error: 'Failed to fetch OSPF data',
-          message: sshError.message 
+          message: fetchError.message 
         },
         { status: 500 }
       );
     }
     
   } catch (error) {
-    console.error('[OSPF] Error fetching live data:', error);
+    console.error('[OSPF-PROXY] Error:', error);
     return NextResponse.json(
       { 
         success: false, 
