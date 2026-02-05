@@ -1,12 +1,12 @@
 /**
- * API Route: Test SSH Connection (OSPF endpoint)
+ * API Route: Get live OSPF neighbors from router
  * GET /api/tejas/live/ospf?routerId=1
- * TESTING MODE: Only tests SSH connection, no actual OSPF command
  */
 
 import { NextResponse } from 'next/server';
 import { query } from '../../../../../lib/db';
-import { testConnection } from '../../../../../lib/ssh-client';
+import { getOSPFNeighbors } from '../../../../../lib/ssh-client';
+import { parseOSPFNeighbors } from '../../../../../lib/tejas-parser';
 
 export async function GET(request) {
   try {
@@ -20,7 +20,7 @@ export async function GET(request) {
       );
     }
     
-    console.log(`[OSPF-TEST] Testing connection for router ID: ${routerId}`);
+    console.log(`[OSPF] Fetching live data for router ID: ${routerId}`);
     
     // Get router from database
     const routerResult = await query(`
@@ -46,9 +46,7 @@ export async function GET(request) {
     
     const router = routerResult.rows[0];
     
-    console.log(`[OSPF-TEST] Router: ${router.hostname} (${router.ip_address})`);
-    console.log(`[OSPF-TEST] Username: ${router.username}`);
-    console.log(`[OSPF-TEST] SSH Port: ${router.ssh_port || 22}`);
+    console.log(`[OSPF] Router: ${router.hostname} (${router.ip_address})`);
     
     // Check if credentials exist
     if (!router.password) {
@@ -58,64 +56,39 @@ export async function GET(request) {
       );
     }
     
-    // Test SSH connection
+    // Fetch OSPF neighbors via SSH
     try {
-      console.log(`[OSPF-TEST] Testing SSH connection...`);
-      const isConnected = await testConnection(router);
+      const ospfOutput = await getOSPFNeighbors(router);
+      const ospfData = parseOSPFNeighbors(ospfOutput);
       
-      if (isConnected) {
-        console.log(`[OSPF-TEST] ✅ SSH connection successful!`);
-        
-        return NextResponse.json({
-          success: true,
-          message: 'SSH connection test successful',
-          router: {
-            id: router.id,
-            hostname: router.hostname,
-            ip_address: router.ip_address,
-            username: router.username,
-            ssh_port: router.ssh_port || 22
-          },
-          test_result: {
-            connection: 'SUCCESS',
-            message: 'Router is accessible via SSH'
-          },
-          timestamp: new Date().toISOString()
-        });
-        
-      } else {
-        console.log(`[OSPF-TEST] ❌ SSH connection failed`);
-        
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: 'SSH connection test failed',
-            message: 'Could not connect to router. Check IP, credentials, and network connectivity.',
-            router: {
-              id: router.id,
-              hostname: router.hostname,
-              ip_address: router.ip_address
-            }
-          },
-          { status: 500 }
-        );
-      }
+      console.log(`[OSPF] Success: ${ospfData.neighbor_count} neighbors found`);
+      
+      return NextResponse.json({
+        success: true,
+        router: {
+          id: router.id,
+          hostname: router.hostname,
+          ip_address: router.ip_address
+        },
+        data: ospfData,
+        raw_output: ospfOutput, // For debugging
+        timestamp: new Date().toISOString()
+      });
       
     } catch (sshError) {
-      console.error('[OSPF-TEST] SSH Error:', sshError.message);
+      console.error('[OSPF] SSH Error:', sshError.message);
       return NextResponse.json(
         { 
           success: false, 
-          error: 'SSH connection error',
-          message: sshError.message,
-          details: sshError.toString()
+          error: 'Failed to fetch OSPF data',
+          message: sshError.message 
         },
         { status: 500 }
       );
     }
     
   } catch (error) {
-    console.error('[OSPF-TEST] Error:', error);
+    console.error('[OSPF] Error fetching live data:', error);
     return NextResponse.json(
       { 
         success: false, 
