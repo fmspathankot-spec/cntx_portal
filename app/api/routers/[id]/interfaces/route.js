@@ -20,7 +20,8 @@ const pool = new Pool({
 // GET - List all interfaces for a router
 export async function GET(request, { params }) {
   try {
-    const routerId = params.id;
+    // Await params for Next.js 15
+    const { id: routerId } = await params;
     
     const query = `
       SELECT 
@@ -57,7 +58,8 @@ export async function GET(request, { params }) {
 // POST - Add new interface
 export async function POST(request, { params }) {
   try {
-    const routerId = params.id;
+    // Await params for Next.js 15
+    const { id: routerId } = await params;
     const body = await request.json();
     
     const { interface_name, interface_type, description, is_active } = body;
@@ -116,7 +118,8 @@ export async function POST(request, { params }) {
 // PUT - Update interface
 export async function PUT(request, { params }) {
   try {
-    const routerId = params.id;
+    // Await params for Next.js 15
+    const { id: routerId } = await params;
     const body = await request.json();
     
     const { id, interface_name, interface_type, description, is_active } = body;
@@ -174,7 +177,8 @@ export async function PUT(request, { params }) {
 // DELETE - Delete interface
 export async function DELETE(request, { params }) {
   try {
-    const routerId = params.id;
+    // Await params for Next.js 15
+    const { id: routerId } = await params;
     const { searchParams } = new URL(request.url);
     const interfaceId = searchParams.get('interfaceId');
     
