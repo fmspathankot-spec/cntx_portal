@@ -9,6 +9,8 @@ import {
   FaChevronRight,
   FaTimes,
   FaBars,
+  FaBoxes,
+  FaClipboardList,
 } from "react-icons/fa";
 import { MdPhoneInTalk, MdDashboard } from "react-icons/md";
 
@@ -56,6 +58,24 @@ export default function MobileSidebar() {
         { name: "Project Topology", href: "/project-topology" },
       ],
     },
+    {
+      name: "Inventory",
+      icon: FaBoxes,
+      submenu: [
+        { name: "Nokia OTN", href: "/inventory/nokia-otn" },
+        { name: "RFTS Sites", href: "/inventory" },
+      ],
+    },
+    {
+      name: "Reports",
+      href: "/reports",
+      icon: FaClipboardList,
+    },
+    {
+      name: "Contact",
+      href: "/contact",
+      icon: MdPhoneInTalk,
+    },
   ];
 
   return (
@@ -98,7 +118,7 @@ export default function MobileSidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-120px)]">
+        <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-180px)]">
           {menuItems.map((item, index) => (
             <div key={index}>
               {item.submenu ? (
@@ -161,6 +181,14 @@ export default function MobileSidebar() {
             </div>
           ))}
         </nav>
+
+        {/* Footer */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-700 bg-slate-900">
+          <div className="text-center">
+            <p className="text-xs text-slate-400">Version 1.0.0</p>
+            <p className="text-xs text-slate-500 mt-1">© 2024 FMS Pathankot</p>
+          </div>
+        </div>
       </aside>
     </>
   );
