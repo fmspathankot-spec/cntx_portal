@@ -3,6 +3,7 @@ Flask Backend for Tejas Router Monitoring
 Handles SSH operations for OSPF, BGP, and SFP monitoring
 
 Single SSH session approach for better performance
+Interfaces fetched dynamically from database
 """
 
 from flask import Flask, request, jsonify
@@ -56,6 +57,31 @@ def get_router_details(router_id):
     
     return router
 
+def get_router_interfaces(router_id):
+    """Fetch active interfaces for a router from database"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    query = """
+        SELECT 
+            id, interface_name, interface_type, description
+        FROM router_interfaces
+        WHERE router_id = %s AND is_active = true
+        ORDER BY interface_name
+    """
+    
+    cursor.execute(query, (router_id,))
+    interfaces = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    print(f"[DB] Found {len(interfaces)} active interfaces for router {router_id}")
+    for iface in interfaces:
+        print(f"[DB]   - {iface['interface_name']} ({iface['interface_type']})")
+    
+    return interfaces
+
 def execute_ssh_commands(router, commands):
     """
     Execute multiple SSH commands in single session
@@ -99,107 +125,84 @@ def execute_ssh_commands(router, commands):
         time.sleep(0.5)
         shell.send('end\n')
         time.sleep(0.5)
+        shell.recv(65535)  # Clear output
         
-        # Clear configuration output
-        config_output = shell.recv(65535).decode('utf-8', errors='ignore')
-        print(f"[SSH] Config output: {config_output[:100]}...")
-        
-        # Execute commands and collect outputs
+        # Execute commands
         outputs = {}
+        
         for cmd_name, cmd in commands.items():
             print(f"\n[SSH] Executing: {cmd}")
             shell.send(f'{cmd}\n')
-            time.sleep(2)  # Wait for command execution
+            time.sleep(2)  # Wait for command to complete
             
             output = shell.recv(65535).decode('utf-8', errors='ignore')
             outputs[cmd_name] = output
             
-            print(f"[SSH] Output length: {len(output)} bytes")
-            print(f"[SSH] First 500 chars of output:")
-            print(f"{'-'*60}")
-            print(output[:500])
-            print(f"{'-'*60}")
-        
-        # Exit
-        print(f"\n[SSH] Closing connection...")
-        shell.send('exit\n')
-        time.sleep(0.5)
+            print(f"[SSH] ✅ Command completed: {cmd_name}")
+            print(f"[SSH] Output length: {len(output)} characters")
         
         # Close connection
         shell.close()
         ssh.close()
-        
-        print(f"[SSH] ✅ Connection closed")
-        print(f"{'='*60}\n")
+        print(f"\n[SSH] Connection closed")
         
         return outputs
         
     except Exception as e:
-        print(f"[SSH] ❌ Error: {str(e)}")
-        raise Exception(f"SSH Error: {str(e)}")
+        print(f"[SSH ERROR] {str(e)}")
+        raise
 
 def parse_ospf_output(output):
     """Parse OSPF neighbor output"""
     print(f"\n[PARSE] Parsing OSPF output...")
-    print(f"[PARSE] Output length: {len(output)} bytes")
-    print(f"[PARSE] Full output:")
-    print(f"{'-'*60}")
-    print(output)
-    print(f"{'-'*60}")
     
-    neighbors = []
     lines = output.split('\n')
+    neighbors = []
     
-    print(f"[PARSE] Total lines: {len(lines)}")
+    # Pattern: Neighbor ID     Pri   State           Dead Time   Address         Interface
+    pattern = r'(\d+\.\d+\.\d+\.\d+)\s+(\d+)\s+(\S+(?:/\S+)?)\s+(\S+)\s+(\d+\.\d+\.\d+\.\d+)\s+(\S+)'
     
-    for i, line in enumerate(lines):
-        # Match OSPF neighbor lines
-        # Example: 10.125.0.9    1   Full/  -  00:00:35  10.125.0.9  GigabitEthernet0/0
-        match = re.search(r'(\d+\.\d+\.\d+\.\d+)\s+\d+\s+(\w+)/\s*-\s+(\d+:\d+:\d+)\s+(\d+\.\d+\.\d+\.\d+)\s+(\S+)', line)
+    for line in lines:
+        match = re.search(pattern, line)
         if match:
-            neighbor = {
+            neighbors.append({
                 'neighbor_id': match.group(1),
-                'state': match.group(2),
-                'dead_time': match.group(3),
-                'address': match.group(4),
-                'interface': match.group(5)
-            }
-            neighbors.append(neighbor)
-            print(f"[PARSE] ✅ Line {i}: Found neighbor: {neighbor}")
-        else:
-            # Try alternate regex patterns
-            # Pattern 2: Without interface
-            match2 = re.search(r'(\d+\.\d+\.\d+\.\d+).*?(\w+).*?(\d+:\d+:\d+)', line)
-            if match2:
-                print(f"[PARSE] ⚠️  Line {i}: Partial match: {line.strip()}")
+                'priority': match.group(2),
+                'state': match.group(3),
+                'dead_time': match.group(4),
+                'address': match.group(5),
+                'interface': match.group(6)
+            })
     
-    print(f"[PARSE] Total neighbors found: {len(neighbors)}")
+    print(f"[PARSE] Total OSPF neighbors found: {len(neighbors)}")
     
     return {
         'neighbor_count': len(neighbors),
         'neighbors': neighbors,
-        'raw_output': output  # Include raw output for debugging
+        'raw_output': output
     }
 
 def parse_bgp_output(output):
     """Parse BGP summary output"""
     print(f"\n[PARSE] Parsing BGP output...")
-    print(f"[PARSE] Output length: {len(output)} bytes")
     
-    peers = []
     lines = output.split('\n')
+    peers = []
+    
+    # Pattern: Neighbor        V    AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd
+    pattern = r'(\d+\.\d+\.\d+\.\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+\d+\s+(\S+)\s+(\S+)'
     
     for line in lines:
-        # Match BGP peer lines
-        match = re.search(r'(\d+\.\d+\.\d+\.\d+)\s+\d+\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+:\d+:\d+|\d+)\s+(\d+)', line)
+        match = re.search(pattern, line)
         if match:
             peers.append({
                 'neighbor': match.group(1),
-                'as': match.group(2),
-                'msg_rcvd': match.group(3),
-                'msg_sent': match.group(4),
-                'uptime': match.group(5),
-                'state_pfxrcd': match.group(6)
+                'version': match.group(2),
+                'as_number': match.group(3),
+                'msg_rcvd': match.group(4),
+                'msg_sent': match.group(5),
+                'uptime': match.group(6),
+                'state_pfxrcd': match.group(7)
             })
     
     print(f"[PARSE] Total BGP peers found: {len(peers)}")
@@ -207,7 +210,7 @@ def parse_bgp_output(output):
     return {
         'peer_count': len(peers),
         'peers': peers,
-        'raw_output': output  # Include raw output for debugging
+        'raw_output': output
     }
 
 def parse_sfp_output(outputs):
@@ -263,7 +266,8 @@ def health_check():
     return jsonify({
         'status': 'ok',
         'service': 'tejas-monitoring-backend',
-        'version': '1.0.0'
+        'version': '2.0.0',
+        'features': ['dynamic_interfaces', 'db_credentials']
     })
 
 # Unified endpoint - Single SSH session for all data
@@ -271,7 +275,7 @@ def health_check():
 def get_all_monitoring_data():
     """
     Get OSPF + BGP + SFP data in single SSH session
-    Much faster than separate API calls
+    Interfaces fetched dynamically from database
     """
     start_time = time.time()
     
@@ -284,7 +288,7 @@ def get_all_monitoring_data():
                 'error': 'Router ID is required'
             }), 400
         
-        # Get router details
+        # Get router details from database
         router = get_router_details(router_id)
         
         if not router:
@@ -299,14 +303,25 @@ def get_all_monitoring_data():
                 'error': 'Router credentials not configured'
             }), 400
         
-        # Define all commands to execute
+        # Get active interfaces from database
+        interfaces = get_router_interfaces(router_id)
+        
+        # Build commands dictionary
         commands = {
             'ospf': 'show ip ospf neighbor',
-            'bgp': 'show ip bgp summary',
-            'sfp_1_5_11': 'show sfp 100g 1/5/11',
-            'sfp_1_4_5': 'show sfp 100g 1/4/5',
-            'sfp_1_3_2': 'show sfp 100g 1/3/2'
+            'bgp': 'show ip bgp summary'
         }
+        
+        # Add SFP commands for each interface
+        sfp_interface_map = {}
+        for idx, iface in enumerate(interfaces):
+            if iface['interface_type'].upper() == 'SFP':
+                cmd_key = f"sfp_{idx}"
+                commands[cmd_key] = f"show sfp {iface['interface_name']}"
+                sfp_interface_map[cmd_key] = iface['interface_name']
+        
+        print(f"\n[INFO] Total commands to execute: {len(commands)}")
+        print(f"[INFO] SFP interfaces: {len(sfp_interface_map)}")
         
         # Execute all commands in single SSH session
         outputs = execute_ssh_commands(router, commands)
@@ -316,11 +331,10 @@ def get_all_monitoring_data():
         bgp_data = parse_bgp_output(outputs['bgp'])
         
         # Parse SFP data
-        sfp_outputs = {
-            '100g 1/5/11': outputs['sfp_1_5_11'],
-            '100g 1/4/5': outputs['sfp_1_4_5'],
-            '100g 1/3/2': outputs['sfp_1_3_2']
-        }
+        sfp_outputs = {}
+        for cmd_key, interface_name in sfp_interface_map.items():
+            sfp_outputs[interface_name] = outputs[cmd_key]
+        
         sfp_data = parse_sfp_output(sfp_outputs)
         
         # Calculate execution time
@@ -341,7 +355,8 @@ def get_all_monitoring_data():
             'performance': {
                 'execution_time_ms': round(execution_time, 2),
                 'ssh_sessions': 1,
-                'commands_executed': len(commands)
+                'commands_executed': len(commands),
+                'interfaces_monitored': len(sfp_interface_map)
             },
             'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
         })
@@ -412,7 +427,7 @@ def get_bgp_data():
 
 @app.route('/api/tejas/live/sfp', methods=['GET'])
 def get_sfp_data():
-    """Get SFP monitoring data"""
+    """Get SFP data for all configured interfaces"""
     try:
         router_id = request.args.get('routerId')
         
@@ -423,18 +438,32 @@ def get_sfp_data():
         if not router:
             return jsonify({'success': False, 'error': 'Router not found'}), 404
         
-        commands = {
-            'sfp_1_5_11': 'show sfp 100g 1/5/11',
-            'sfp_1_4_5': 'show sfp 100g 1/4/5',
-            'sfp_1_3_2': 'show sfp 100g 1/3/2'
-        }
+        # Get interfaces from database
+        interfaces = get_router_interfaces(router_id)
+        
+        # Build SFP commands
+        commands = {}
+        sfp_interface_map = {}
+        
+        for idx, iface in enumerate(interfaces):
+            if iface['interface_type'].upper() == 'SFP':
+                cmd_key = f"sfp_{idx}"
+                commands[cmd_key] = f"show sfp {iface['interface_name']}"
+                sfp_interface_map[cmd_key] = iface['interface_name']
+        
+        if not commands:
+            return jsonify({
+                'success': False,
+                'error': 'No SFP interfaces configured for this router'
+            }), 404
+        
         outputs = execute_ssh_commands(router, commands)
         
-        sfp_outputs = {
-            '100g 1/5/11': outputs['sfp_1_5_11'],
-            '100g 1/4/5': outputs['sfp_1_4_5'],
-            '100g 1/3/2': outputs['sfp_1_3_2']
-        }
+        # Parse SFP data
+        sfp_outputs = {}
+        for cmd_key, interface_name in sfp_interface_map.items():
+            sfp_outputs[interface_name] = outputs[cmd_key]
+        
         sfp_data = parse_sfp_output(sfp_outputs)
         
         return jsonify({
@@ -449,12 +478,16 @@ def get_sfp_data():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("🚀 Tejas Monitoring Backend Starting...")
-    print("=" * 60)
-    print(f"📡 Server: http://localhost:8000")
-    print(f"🔍 Health Check: http://localhost:8000/health")
-    print(f"⚡ Unified API: http://localhost:8000/api/tejas/live/all")
-    print("=" * 60)
+    print("\n" + "="*60)
+    print("🚀 Tejas Router Monitoring Backend")
+    print("="*60)
+    print("✅ Dynamic interface loading from database")
+    print("✅ Credentials from database")
+    print("✅ Single SSH session for all commands")
+    print("="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True
+    )
