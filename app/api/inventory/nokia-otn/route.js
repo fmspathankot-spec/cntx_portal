@@ -118,6 +118,7 @@ export async function GET(request) {
         COUNT(p.id) as total_ports,
         COUNT(CASE WHEN p.destination_location IS NOT NULL THEN 1 END) as used_ports,
         COUNT(CASE WHEN p.destination_location IS NULL THEN 1 END) as free_ports,
+        COUNT(CASE WHEN p.service_name IS NOT NULL AND p.service_name != '' THEN 1 END) as live_services,
         COUNT(CASE WHEN p.service_type = 'LAN' THEN 1 END) as lan_count,
         COUNT(CASE WHEN p.service_type = 'WAN' THEN 1 END) as wan_count
       FROM nokia_otn_cards c
@@ -127,13 +128,14 @@ export async function GET(request) {
     
     const statsResult = await pool.query(statsQuery, [status]);
     
-    // Get port type counts
+    // Get port type counts (only for live services with service_name)
     const portTypeQuery = `
       SELECT 
         port_type,
         COUNT(*) as count
       FROM nokia_otn_ports
-      WHERE destination_location IS NOT NULL
+      WHERE service_name IS NOT NULL
+        AND service_name != ''
         AND port_type IS NOT NULL
       GROUP BY port_type
       ORDER BY port_type
