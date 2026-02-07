@@ -2,20 +2,22 @@
 
 import RouterStatusIndicator from './RouterStatusIndicator';
 
-export default function RouterSelector({ routers = [], selectedRouter, onSelectRouter }) {
+export default function RouterSelector({ routers = [], selectedRouter, onRouterSelect }) {
   const handleRouterChange = (e) => {
     try {
       const routerId = e.target.value;
       
       if (!routerId || routerId === '') {
-        onSelectRouter(null);
+        if (onRouterSelect) {
+          onRouterSelect(null);
+        }
         return;
       }
       
       const router = routers.find(r => r.id === parseInt(routerId));
       
-      if (router) {
-        onSelectRouter(router);
+      if (router && onRouterSelect) {
+        onRouterSelect(router);
       }
     } catch (error) {
       console.error('Error selecting router:', error);
