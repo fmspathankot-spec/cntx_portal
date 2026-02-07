@@ -18,36 +18,31 @@ export async function GET(request) {
   try {
     // Get unique values for filters
     const queries = {
-      locations: `SELECT DISTINCT location FROM nokia_otn_inventory WHERE location IS NOT NULL ORDER BY location`,
-      cardTypes: `SELECT DISTINCT card_type FROM nokia_otn_inventory WHERE card_type IS NOT NULL ORDER BY card_type`,
-      statuses: `SELECT DISTINCT operational_status FROM nokia_otn_inventory WHERE operational_status IS NOT NULL ORDER BY operational_status`,
-      nodeNames: `SELECT DISTINCT node_name FROM nokia_otn_inventory WHERE node_name IS NOT NULL ORDER BY node_name`,
-      vendors: `SELECT DISTINCT vendor FROM nokia_otn_inventory WHERE vendor IS NOT NULL ORDER BY vendor`,
-      healthStatuses: `SELECT DISTINCT health_status FROM nokia_otn_inventory WHERE health_status IS NOT NULL ORDER BY health_status`,
+      cards: `SELECT card_number, card_model, total_ports, status FROM nokia_otn_cards ORDER BY card_number`,
+      destinations: `SELECT DISTINCT destination_location FROM nokia_otn_ports WHERE destination_location IS NOT NULL ORDER BY destination_location`,
+      serviceTypes: `SELECT DISTINCT service_type FROM nokia_otn_ports WHERE service_type IS NOT NULL ORDER BY service_type`,
+      serviceNames: `SELECT DISTINCT service_name FROM nokia_otn_ports WHERE service_name IS NOT NULL ORDER BY service_name LIMIT 50`,
     };
     
     const results = await Promise.all([
-      pool.query(queries.locations),
-      pool.query(queries.cardTypes),
-      pool.query(queries.statuses),
-      pool.query(queries.nodeNames),
-      pool.query(queries.vendors),
-      pool.query(queries.healthStatuses),
+      pool.query(queries.cards),
+      pool.query(queries.destinations),
+      pool.query(queries.serviceTypes),
+      pool.query(queries.serviceNames),
     ]);
     
     // Get statistics
     const statsQuery = `
       SELECT 
-        COUNT(*) as total_items,
-        COUNT(DISTINCT location) as total_locations,
-        COUNT(DISTINCT card_type) as total_card_types,
-        COUNT(DISTINCT node_name) as total_nodes,
-        COUNT(CASE WHEN operational_status = 'Active' THEN 1 END) as active_items,
-        COUNT(CASE WHEN operational_status = 'Inactive' THEN 1 END) as inactive_items,
-        COUNT(CASE WHEN health_status = 'Good' THEN 1 END) as healthy_items,
-        COUNT(CASE WHEN health_status = 'Warning' THEN 1 END) as warning_items,
-        COUNT(CASE WHEN health_status = 'Critical' THEN 1 END) as critical_items
-      FROM nokia_otn_inventory
+        COUNT(DISTINCT c.card_number) as total_cards,
+        SUM(c.total_ports) as total_ports,
+        COUNT(CASE WHEN p.destination_location IS NOT NULL THEN 1 END) as used_ports,
+        COUNT(CASE WHEN p.destination_location IS NULL THEN 1 END) as free_ports,
+        COUNT(DISTINCT p.destination_location) as total_destinations,
+        COUNT(CASE WHEN p.service_type = 'LAN' THEN 1 END) as lan_services,
+        COUNT(CASE WHEN p.service_type = 'WAN' THEN 1 END) as wan_services
+      FROM nokia_otn_cards c
+      LEFT JOIN nokia_otn_ports p ON c.card_number = p.card_number
     `;
     
     const statsResult = await pool.query(statsQuery);
@@ -55,12 +50,10 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       filters: {
-        locations: results[0].rows.map(r => r.location),
-        cardTypes: results[1].rows.map(r => r.card_type),
-        statuses: results[2].rows.map(r => r.operational_status),
-        nodeNames: results[3].rows.map(r => r.node_name),
-        vendors: results[4].rows.map(r => r.vendor),
-        healthStatuses: results[5].rows.map(r => r.health_status),
+        cards: results[0].rows,
+        destinations: results[1].rows.map(r => r.destination_location),
+        serviceTypes: results[2].rows.map(r => r.service_type),
+        serviceNames: results[3].rows.map(r => r.service_name),
       },
       statistics: statsResult.rows[0]
     });
