@@ -9,6 +9,7 @@ import {
   FaNetworkWired,
   FaChevronDown,
   FaChevronRight,
+  FaBoxes,
 } from "react-icons/fa";
 import { MdPhoneInTalk, MdDashboard } from "react-icons/md";
 
@@ -53,6 +54,14 @@ const Sidebar = () => {
         { name: "MAAN Node Status", href: "/maan-ping" },
         { name: "OTN Port Status", href: "/otn-port-status" },
         { name: "Project Topology", href: "/project-topology" },
+      ],
+    },
+    {
+      name: "Inventory",
+      icon: FaBoxes,
+      submenu: [
+        { name: "Nokia OTN", href: "/inventory/nokia-otn" },
+        { name: "RFTS Sites", href: "/inventory" },
       ],
     },
     {
