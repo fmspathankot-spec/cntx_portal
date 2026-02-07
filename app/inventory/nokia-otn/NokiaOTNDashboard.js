@@ -120,20 +120,17 @@ export default function NokiaOTNDashboard() {
       portTypes: {}
     };
 
-    cards.forEach(card => {
-      stats.totalServices += card.used_ports || 0;
-    });
+    // Total services = only ports with actual service_name (live services)
+    stats.totalServices = statistics.live_services || 0;
 
-    // Get port type counts from statistics
+    // Get port type counts from statistics (only live ports)
     if (statistics.port_type_counts) {
       stats.portTypes = statistics.port_type_counts;
     }
 
-    // Calculate LAN/WAN from filters
-    if (filters.serviceTypes) {
-      stats.lanServices = statistics.lan_count || 0;
-      stats.wanServices = statistics.wan_count || 0;
-    }
+    // Calculate LAN/WAN from statistics
+    stats.lanServices = statistics.lan_count || 0;
+    stats.wanServices = statistics.wan_count || 0;
 
     return stats;
   };
@@ -258,7 +255,7 @@ export default function NokiaOTNDashboard() {
               <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-indigo-100">Total Services</p>
+                    <p className="text-sm font-medium text-indigo-100">Live Services</p>
                     <p className="text-3xl font-bold mt-2">{serviceStats.totalServices}</p>
                     <p className="text-xs text-indigo-200 mt-1">Active Connections</p>
                   </div>
