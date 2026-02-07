@@ -111,6 +111,35 @@ export default function NokiaOTNDashboard() {
     alert('Port updated successfully!');
   };
 
+  // Calculate service statistics from all cards
+  const calculateServiceStats = () => {
+    const stats = {
+      totalServices: 0,
+      lanServices: 0,
+      wanServices: 0,
+      portTypes: {}
+    };
+
+    cards.forEach(card => {
+      stats.totalServices += card.used_ports || 0;
+    });
+
+    // Get port type counts from statistics
+    if (statistics.port_type_counts) {
+      stats.portTypes = statistics.port_type_counts;
+    }
+
+    // Calculate LAN/WAN from filters
+    if (filters.serviceTypes) {
+      stats.lanServices = statistics.lan_count || 0;
+      stats.wanServices = statistics.wan_count || 0;
+    }
+
+    return stats;
+  };
+
+  const serviceStats = calculateServiceStats();
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -165,8 +194,8 @@ export default function NokiaOTNDashboard() {
         {!selectedCard ? (
           // Cards Grid View
           <>
-            {/* Statistics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            {/* Statistics Row 1 - Card Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -218,6 +247,88 @@ export default function NokiaOTNDashboard() {
                   <div className="bg-orange-100 p-3 rounded-lg">
                     <svg className="w-8 h-8 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Statistics Row 2 - Service Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-indigo-100">Total Services</p>
+                    <p className="text-3xl font-bold mt-2">{serviceStats.totalServices}</p>
+                    <p className="text-xs text-indigo-200 mt-1">Active Connections</p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-lg">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-blue-100">10G Ports</p>
+                    <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['10G'] || 0}</p>
+                    <p className="text-xs text-blue-200 mt-1">High Speed</p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-lg">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-cyan-100">2.5G Ports</p>
+                    <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['2.5G'] || 0}</p>
+                    <p className="text-xs text-cyan-200 mt-1">Medium Speed</p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-lg">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-teal-100">1G Ports</p>
+                    <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['1G'] || 0}</p>
+                    <p className="text-xs text-teal-200 mt-1">Standard Speed</p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-lg">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-lg p-6 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-100">Other Ports</p>
+                    <p className="text-3xl font-bold mt-2">
+                      {Object.entries(serviceStats.portTypes)
+                        .filter(([key]) => !['10G', '2.5G', '1G'].includes(key))
+                        .reduce((sum, [, value]) => sum + value, 0)}
+                    </p>
+                    <p className="text-xs text-emerald-200 mt-1">Mixed Types</p>
+                  </div>
+                  <div className="bg-white/20 p-3 rounded-lg">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
                     </svg>
                   </div>
                 </div>
@@ -384,7 +495,7 @@ export default function NokiaOTNDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dest. Port</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">Remarks</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -426,8 +537,10 @@ export default function NokiaOTNDashboard() {
                             <span className="text-sm text-gray-400">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
-                          {port.remarks || '-'}
+                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
+                          <div className="break-words whitespace-normal">
+                            {port.remarks || '-'}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
