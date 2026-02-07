@@ -20,9 +20,12 @@ export async function POST(request) {
   try {
     await client.query('BEGIN');
     
+    // Drop existing table if exists (for clean setup)
+    await client.query('DROP TABLE IF EXISTS router_interfaces CASCADE');
+    
     // Create router_interfaces table
     const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS router_interfaces (
+      CREATE TABLE router_interfaces (
         id SERIAL PRIMARY KEY,
         router_id INTEGER NOT NULL REFERENCES routers(id) ON DELETE CASCADE,
         interface_name VARCHAR(100) NOT NULL,
@@ -34,45 +37,35 @@ export async function POST(request) {
         UNIQUE(router_id, interface_name)
       );
       
-      CREATE INDEX IF NOT EXISTS idx_router_interfaces_router_id 
+      CREATE INDEX idx_router_interfaces_router_id 
         ON router_interfaces(router_id);
       
-      CREATE INDEX IF NOT EXISTS idx_router_interfaces_active 
-        ON router_interfaces(is_active);
+      CREATE INDEX idx_router_interfaces_active 
+        ON router_interfaces(router_id, is_active);
     `;
     
     await client.query(createTableQuery);
     
-    // Check if sample data already exists
-    const checkQuery = `
-      SELECT COUNT(*) as count FROM router_interfaces
-    `;
-    const checkResult = await client.query(checkQuery);
+    // Get first router ID
+    const routerQuery = `SELECT id FROM routers ORDER BY id LIMIT 1`;
+    const routerResult = await client.query(routerQuery);
     
     let sampleDataAdded = false;
     
-    // Add sample data only if table is empty
-    if (parseInt(checkResult.rows[0].count) === 0) {
-      // Get first router ID
-      const routerQuery = `SELECT id FROM routers LIMIT 1`;
-      const routerResult = await client.query(routerQuery);
+    if (routerResult.rows.length > 0) {
+      const routerId = routerResult.rows[0].id;
       
-      if (routerResult.rows.length > 0) {
-        const routerId = routerResult.rows[0].id;
-        
-        const sampleDataQuery = `
-          INSERT INTO router_interfaces 
-            (router_id, interface_name, interface_type, description, is_active)
-          VALUES 
-            ($1, '100g 1/5/11', 'SFP', 'Primary uplink interface', true),
-            ($1, '100g 1/4/5', 'SFP', 'Secondary uplink interface', true),
-            ($1, '100g 1/3/2', 'SFP', 'Backup interface', true)
-          ON CONFLICT (router_id, interface_name) DO NOTHING
-        `;
-        
-        await client.query(sampleDataQuery, [routerId]);
-        sampleDataAdded = true;
-      }
+      const sampleDataQuery = `
+        INSERT INTO router_interfaces 
+          (router_id, interface_name, interface_type, description, is_active)
+        VALUES 
+          ($1, '100g 1/5/11', 'SFP', 'Primary uplink interface', true),
+          ($1, '100g 1/4/5', 'SFP', 'Secondary uplink interface', true),
+          ($1, '100g 1/3/2', 'SFP', 'Backup interface', true)
+      `;
+      
+      await client.query(sampleDataQuery, [routerId]);
+      sampleDataAdded = true;
     }
     
     await client.query('COMMIT');
@@ -83,7 +76,8 @@ export async function POST(request) {
       sampleDataAdded,
       details: {
         table: 'router_interfaces',
-        indexes: ['idx_router_interfaces_router_id', 'idx_router_interfaces_active']
+        indexes: ['idx_router_interfaces_router_id', 'idx_router_interfaces_active'],
+        sample_router_id: routerResult.rows[0]?.id
       }
     });
     
