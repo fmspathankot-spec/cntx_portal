@@ -105,7 +105,7 @@ export async function GET(request) {
       FROM nokia_otn_cards c
       LEFT JOIN nokia_otn_ports p ON c.card_number = p.card_number
       WHERE c.status = $1
-      GROUP BY c.id
+      GROUP BY c.id, c.card_number, c.card_model, c.total_ports, c.port_type, c.location, c.status, c.created_at, c.updated_at
       ORDER BY c.card_number
     `;
     
@@ -114,24 +114,55 @@ export async function GET(request) {
     // Get overall statistics
     const statsQuery = `
       SELECT 
-        COUNT(DISTINCT card_number) as total_cards,
-        COUNT(*) as total_ports,
-        COUNT(CASE WHEN destination_location IS NOT NULL THEN 1 END) as used_ports,
-        COUNT(CASE WHEN destination_location IS NULL THEN 1 END) as free_ports,
-        COUNT(DISTINCT destination_location) as total_destinations
-      FROM nokia_otn_ports
+        COUNT(DISTINCT c.id) as total_cards,
+        COUNT(p.id) as total_ports,
+        COUNT(CASE WHEN p.destination_location IS NOT NULL THEN 1 END) as used_ports,
+        COUNT(CASE WHEN p.destination_location IS NULL THEN 1 END) as free_ports,
+        COUNT(CASE WHEN p.service_type = 'LAN' THEN 1 END) as lan_count,
+        COUNT(CASE WHEN p.service_type = 'WAN' THEN 1 END) as wan_count
+      FROM nokia_otn_cards c
+      LEFT JOIN nokia_otn_ports p ON c.card_number = p.card_number
+      WHERE c.status = $1
     `;
     
-    const statsResult = await pool.query(statsQuery);
+    const statsResult = await pool.query(statsQuery, [status]);
+    
+    // Get port type counts
+    const portTypeQuery = `
+      SELECT 
+        port_type,
+        COUNT(*) as count
+      FROM nokia_otn_ports
+      WHERE destination_location IS NOT NULL
+        AND port_type IS NOT NULL
+      GROUP BY port_type
+      ORDER BY port_type
+    `;
+    
+    const portTypeResult = await pool.query(portTypeQuery);
+    
+    // Convert port type counts to object
+    const portTypeCounts = {};
+    portTypeResult.rows.forEach(row => {
+      portTypeCounts[row.port_type] = parseInt(row.count);
+    });
+    
+    const statistics = {
+      ...statsResult.rows[0],
+      port_type_counts: portTypeCounts,
+      utilizationPercent: statsResult.rows[0].total_ports > 0
+        ? ((statsResult.rows[0].used_ports / statsResult.rows[0].total_ports) * 100).toFixed(2)
+        : 0
+    };
     
     return NextResponse.json({
       success: true,
       cards: cardsResult.rows,
-      statistics: statsResult.rows[0]
+      statistics
     });
     
   } catch (error) {
-    console.error('Error fetching Nokia OTN inventory:', error);
+    console.error('Nokia OTN API Error:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
