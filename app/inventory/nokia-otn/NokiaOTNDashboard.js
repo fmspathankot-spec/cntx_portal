@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import PortEditModal from './components/PortEditModal';
 
 export default function NokiaOTNDashboard() {
   const [cards, setCards] = useState([]);
@@ -12,6 +13,10 @@ export default function NokiaOTNDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDestination, setFilterDestination] = useState('');
   const [filterServiceType, setFilterServiceType] = useState('');
+  
+  // Edit Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedPort, setSelectedPort] = useState(null);
 
   // Fetch cards on mount
   useEffect(() => {
@@ -90,6 +95,22 @@ export default function NokiaOTNDashboard() {
     setFilterServiceType('');
   };
 
+  const handleEditPort = (port) => {
+    setSelectedPort(port);
+    setEditModalOpen(true);
+  };
+
+  const handleSavePort = (updatedPort) => {
+    // Update ports list
+    setPorts(ports.map(p => p.id === updatedPort.id ? updatedPort : p));
+    
+    // Refresh cards to update statistics
+    fetchCards();
+    
+    // Show success message
+    alert('Port updated successfully!');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -118,7 +139,7 @@ export default function NokiaOTNDashboard() {
                   Nokia OTN Inventory
                 </h1>
                 <p className="mt-1 text-sm text-blue-100">
-                  20AX200 Cards - Port Management System
+                  20AX200 & 20MX80 Cards - Port Management System
                 </p>
               </div>
             </div>
@@ -365,6 +386,7 @@ export default function NokiaOTNDashboard() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -414,6 +436,17 @@ export default function NokiaOTNDashboard() {
                             {port.destination_location ? 'In Use' : 'Free'}
                           </span>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => handleEditPort(port)}
+                            className="text-blue-600 hover:text-blue-900 font-medium flex items-center space-x-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span>Edit</span>
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -423,6 +456,17 @@ export default function NokiaOTNDashboard() {
           </>
         )}
       </div>
+
+      {/* Edit Modal */}
+      <PortEditModal
+        port={selectedPort}
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setSelectedPort(null);
+        }}
+        onSave={handleSavePort}
+      />
     </div>
   );
 }
