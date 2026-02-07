@@ -2,7 +2,26 @@
 
 import RouterStatusIndicator from './RouterStatusIndicator';
 
-export default function RouterSelector({ routers, selectedRouter, onSelectRouter }) {
+export default function RouterSelector({ routers = [], selectedRouter, onSelectRouter }) {
+  const handleRouterChange = (e) => {
+    try {
+      const routerId = e.target.value;
+      
+      if (!routerId || routerId === '') {
+        onSelectRouter(null);
+        return;
+      }
+      
+      const router = routers.find(r => r.id === parseInt(routerId));
+      
+      if (router) {
+        onSelectRouter(router);
+      }
+    } catch (error) {
+      console.error('Error selecting router:', error);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex items-center justify-between">
@@ -13,18 +32,19 @@ export default function RouterSelector({ routers, selectedRouter, onSelectRouter
           <select
             id="router-select"
             value={selectedRouter?.id || ''}
-            onChange={(e) => {
-              const router = routers.find(r => r.id === parseInt(e.target.value));
-              onSelectRouter(router);
-            }}
+            onChange={handleRouterChange}
             className="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 text-base"
           >
             <option value="">-- Select a router --</option>
-            {routers.map((router) => (
-              <option key={router.id} value={router.id}>
-                {router.hostname} ({router.ip_address}) - {router.location || 'N/A'}
-              </option>
-            ))}
+            {routers && routers.length > 0 ? (
+              routers.map((router) => (
+                <option key={router.id} value={router.id}>
+                  {router.hostname} ({router.ip_address}) - {router.location || 'N/A'}
+                </option>
+              ))
+            ) : (
+              <option disabled>No routers available</option>
+            )}
           </select>
         </div>
         
