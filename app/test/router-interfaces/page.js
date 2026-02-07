@@ -7,6 +7,7 @@ export default function RouterInterfacesTest() {
   const [interfaces, setInterfaces] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [tableInfo, setTableInfo] = useState(null);
   
   // Form state
   const [newInterface, setNewInterface] = useState({
@@ -16,8 +17,61 @@ export default function RouterInterfacesTest() {
     is_active: true
   });
 
+  // Check table structure
+  const checkTable = async () => {
+    try {
+      setLoading(true);
+      setMessage('Checking table structure...');
+      
+      const res = await fetch('/api/setup/check-table');
+      const data = await res.json();
+      
+      if (data.success) {
+        setTableInfo(data);
+        if (data.isValid) {
+          setMessage('✅ Table structure is valid');
+        } else {
+          setMessage(`⚠️ Missing columns: ${data.missingColumns.join(', ')}`);
+        }
+      } else {
+        setMessage(`❌ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Migrate table
+  const migrateTable = async () => {
+    try {
+      setLoading(true);
+      setMessage('Migrating table...');
+      
+      const res = await fetch('/api/setup/migrate-table', {
+        method: 'POST'
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setMessage(`✅ ${data.message}\n${data.migrations.join('\n')}`);
+        checkTable();
+      } else {
+        setMessage(`❌ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Setup database
   const setupDatabase = async () => {
+    if (!confirm('This will DROP and recreate the table. Continue?')) return;
+    
     try {
       setLoading(true);
       setMessage('Creating table...');
@@ -30,6 +84,7 @@ export default function RouterInterfacesTest() {
       
       if (data.success) {
         setMessage(`✅ ${data.message}`);
+        checkTable();
         fetchInterfaces();
       } else {
         setMessage(`❌ Error: ${data.error}`);
@@ -148,8 +203,8 @@ export default function RouterInterfacesTest() {
   };
 
   useEffect(() => {
-    fetchInterfaces();
-  }, [routerId]);
+    checkTable();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -167,23 +222,64 @@ export default function RouterInterfacesTest() {
 
         {/* Message */}
         {message && (
-          <div className={`p-4 rounded-lg mb-6 ${
-            message.includes('✅') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          <div className={`p-4 rounded-lg mb-6 whitespace-pre-line ${
+            message.includes('✅') ? 'bg-green-50 text-green-800' : 
+            message.includes('⚠️') ? 'bg-yellow-50 text-yellow-800' :
+            'bg-red-50 text-red-800'
           }`}>
             {message}
           </div>
         )}
 
-        {/* Setup Button */}
+        {/* Table Info */}
+        {tableInfo && (
+          <div className="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 className="text-xl font-bold mb-4">Table Status</h2>
+            <div className="space-y-2">
+              <p><strong>Exists:</strong> {tableInfo.tableExists ? '✅ Yes' : '❌ No'}</p>
+              {tableInfo.tableExists && (
+                <>
+                  <p><strong>Valid:</strong> {tableInfo.isValid ? '✅ Yes' : '❌ No'}</p>
+                  <p><strong>Columns:</strong> {tableInfo.columnNames?.join(', ')}</p>
+                  {tableInfo.missingColumns?.length > 0 && (
+                    <p className="text-red-600">
+                      <strong>Missing:</strong> {tableInfo.missingColumns.join(', ')}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Setup Buttons */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <h2 className="text-xl font-bold mb-4">Database Setup</h2>
-          <button
-            onClick={setupDatabase}
-            disabled={loading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? 'Setting up...' : 'Setup Database Table'}
-          </button>
+          <div className="flex gap-4">
+            <button
+              onClick={checkTable}
+              disabled={loading}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Checking...' : 'Check Table'}
+            </button>
+            
+            <button
+              onClick={migrateTable}
+              disabled={loading}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+            >
+              {loading ? 'Migrating...' : 'Migrate Table (Add Missing Columns)'}
+            </button>
+            
+            <button
+              onClick={setupDatabase}
+              disabled={loading}
+              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? 'Setting up...' : 'Fresh Setup (DROP & CREATE)'}
+            </button>
+          </div>
         </div>
 
         {/* Router Selection */}
