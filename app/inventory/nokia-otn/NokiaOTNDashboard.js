@@ -100,95 +100,60 @@ export default function NokiaOTNDashboard() {
     setServiceFilter(null);
   };
 
+  // Handle service card clicks
+  const handleServiceCardClick = async (filterType, filterValue) => {
+    try {
+      setLoading(true);
+      setServiceFilter(filterType);
+      
+      let url = '/api/inventory/nokia-otn/all-ports?hasService=true';
+      
+      if (filterType === '10G' || filterType === '2.5G' || filterType === '1G') {
+        url += `&portType=${filterType}`;
+      } else if (filterType === 'LAN' || filterType === 'WAN') {
+        url += `&serviceType=${filterType}`;
+      }
+      
+      console.log('Fetching filtered ports:', url);
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      console.log('Filtered ports response:', data);
+      
+      if (data.success) {
+        setPorts(data.ports);
+        setSelectedCard({ 
+          card_number: 'ALL',
+          card_type: `${filterType} Services`
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching filtered ports:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEditPort = (port) => {
     setSelectedPort(port);
     setEditModalOpen(true);
   };
 
-  const handleSavePort = (updatedPort) => {
-    // Update ports list
-    setPorts(ports.map(p => p.id === updatedPort.id ? updatedPort : p));
-    
-    // Refresh cards to update statistics
-    fetchCards();
-    
-    // Show success message
-    alert('Port updated successfully!');
-  };
-
-  // Handle service card click - show all ports with that service type
-  const handleServiceCardClick = (filterType) => {
-    setServiceFilter(filterType);
-    // Don't select any specific card, show all ports matching filter
-    setSelectedCard({ card_number: 'ALL', card_type: 'All Cards' });
-    fetchAllPortsWithFilter(filterType);
-  };
-
-  const fetchAllPortsWithFilter = async (filterType) => {
-    try {
-      let url = '/api/inventory/nokia-otn/all-ports';
-      
-      // Add filter based on type
-      const params = new URLSearchParams();
-      
-      if (filterType === 'all') {
-        params.append('hasService', 'true');
-      } else if (filterType === '10G' || filterType === '2.5G' || filterType === '1G') {
-        params.append('portType', filterType);
-        params.append('hasService', 'true');
-      } else if (filterType === 'LAN') {
-        params.append('serviceType', 'LAN');
-      } else if (filterType === 'WAN') {
-        params.append('serviceType', 'WAN');
-      }
-      
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-      
-      const res = await fetch(url);
-      const data = await res.json();
-      
-      if (data.success) {
-        setPorts(data.ports);
-      }
-    } catch (error) {
-      console.error('Error fetching filtered ports:', error);
+  const handlePortUpdated = () => {
+    // Refresh data after port update
+    if (selectedCard && selectedCard.card_number !== 'ALL') {
+      fetchPorts(selectedCard.card_number);
     }
+    fetchCards(); // Refresh statistics
   };
-
-  // Calculate service statistics from all cards
-  const calculateServiceStats = () => {
-    const stats = {
-      totalServices: 0,
-      lanServices: 0,
-      wanServices: 0,
-      portTypes: {}
-    };
-
-    // Total services = only ports with actual service_name (live services)
-    stats.totalServices = statistics.live_services || 0;
-
-    // Get port type counts from statistics (only live ports)
-    if (statistics.port_type_counts) {
-      stats.portTypes = statistics.port_type_counts;
-    }
-
-    // Calculate LAN/WAN from statistics
-    stats.lanServices = statistics.lan_count || 0;
-    stats.wanServices = statistics.wan_count || 0;
-
-    return stats;
-  };
-
-  const serviceStats = calculateServiceStats();
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Nokia OTN Inventory...</p>
+          <p className="text-gray-600">Loading Nokia OTN inventory...</p>
         </div>
       </div>
     );
@@ -197,29 +162,22 @@ export default function NokiaOTNDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 shadow-lg">
+      <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="bg-white p-3 rounded-lg">
-                <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">
-                  Nokia OTN Inventory
-                </h1>
-                <p className="mt-1 text-sm text-blue-100">
-                  20AX200 & 20MX80 Cards - Port Management System
-                </p>
-              </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                📡 Nokia OTN Inventory
+              </h1>
+              <p className="mt-1 text-sm text-gray-500">
+                20AX200 & 20MX80 Cards Management
+              </p>
             </div>
             
             {selectedCard && (
               <button
                 onClick={handleBackToCards}
-                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors flex items-center space-x-2 font-medium"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -233,17 +191,18 @@ export default function NokiaOTNDashboard() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
         {!selectedCard ? (
-          // Cards Grid View
           <>
-            {/* Statistics Row 1 - Card Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Total Cards */}
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Cards</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{statistics.total_cards || 0}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                      {statistics.total_cards || 0}
+                    </p>
                   </div>
                   <div className="bg-blue-100 p-3 rounded-lg">
                     <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,11 +212,14 @@ export default function NokiaOTNDashboard() {
                 </div>
               </div>
 
+              {/* Total Ports */}
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Ports</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{statistics.total_ports || 0}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">
+                      {statistics.total_ports || 0}
+                    </p>
                   </div>
                   <div className="bg-purple-100 p-3 rounded-lg">
                     <svg className="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -267,11 +229,17 @@ export default function NokiaOTNDashboard() {
                 </div>
               </div>
 
+              {/* Used Ports */}
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Used Ports</p>
-                    <p className="text-3xl font-bold text-green-600 mt-2">{statistics.used_ports || 0}</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">
+                      {statistics.used_ports || 0}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {statistics.utilizationPercent}% utilized
+                    </p>
                   </div>
                   <div className="bg-green-100 p-3 rounded-lg">
                     <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -281,11 +249,14 @@ export default function NokiaOTNDashboard() {
                 </div>
               </div>
 
+              {/* Free Ports */}
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Free Ports</p>
-                    <p className="text-3xl font-bold text-orange-600 mt-2">{statistics.free_ports || 0}</p>
+                    <p className="text-3xl font-bold text-orange-600 mt-2">
+                      {statistics.free_ports || 0}
+                    </p>
                   </div>
                   <div className="bg-orange-100 p-3 rounded-lg">
                     <svg className="w-8 h-8 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -296,107 +267,141 @@ export default function NokiaOTNDashboard() {
               </div>
             </div>
 
-            {/* Statistics Row 2 - Service Stats (CLICKABLE) */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-              {/* Live Services Card - Clickable */}
-              <button
-                onClick={() => handleServiceCardClick('all')}
-                className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-indigo-100">Live Services</p>
-                    <p className="text-3xl font-bold mt-2">{serviceStats.totalServices}</p>
-                    <p className="text-xs text-indigo-200 mt-1">Click to view all</p>
-                  </div>
-                  <div className="bg-white/20 p-3 rounded-lg">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                </div>
-              </button>
-
-              {/* 10G Ports Card - Clickable */}
-              <button
-                onClick={() => handleServiceCardClick('10G')}
-                className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-blue-100">10G Ports</p>
-                    <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['10G'] || 0}</p>
-                    <p className="text-xs text-blue-200 mt-1">Click to view</p>
-                  </div>
-                  <div className="bg-white/20 p-3 rounded-lg">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
+            {/* Service Statistics - Clickable Cards */}
+            <div className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                Service Statistics
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Live Services */}
+                <div 
+                  onClick={() => handleServiceCardClick('all')}
+                  className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <p className="text-sm font-medium opacity-90">Live Services</p>
+                      <p className="text-4xl font-bold mt-2">
+                        {statistics.live_services || 0}
+                      </p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </button>
 
-              {/* 2.5G Ports Card - Clickable */}
-              <button
-                onClick={() => handleServiceCardClick('2.5G')}
-                className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-cyan-100">2.5G Ports</p>
-                    <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['2.5G'] || 0}</p>
-                    <p className="text-xs text-cyan-200 mt-1">Click to view</p>
-                  </div>
-                  <div className="bg-white/20 p-3 rounded-lg">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                    </svg>
+                {/* 10G Ports */}
+                <div 
+                  onClick={() => handleServiceCardClick('10G')}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <p className="text-sm font-medium opacity-90">10G Ports</p>
+                      <p className="text-4xl font-bold mt-2">
+                        {statistics.port_type_counts?.['10G'] || 0}
+                      </p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </button>
 
-              {/* 1G Ports Card - Clickable */}
-              <button
-                onClick={() => handleServiceCardClick('1G')}
-                className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-teal-100">1G Ports</p>
-                    <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['1G'] || 0}</p>
-                    <p className="text-xs text-teal-200 mt-1">Click to view</p>
-                  </div>
-                  <div className="bg-white/20 p-3 rounded-lg">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+                {/* 2.5G Ports */}
+                <div 
+                  onClick={() => handleServiceCardClick('2.5G')}
+                  className="bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <p className="text-sm font-medium opacity-90">2.5G Ports</p>
+                      <p className="text-4xl font-bold mt-2">
+                        {statistics.port_type_counts?.['2.5G'] || 0}
+                      </p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
                   </div>
                 </div>
-              </button>
 
-              {/* LAN/WAN Combined Card - Clickable */}
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-lg p-6 text-white">
-                <div className="space-y-3">
-                  <button
-                    onClick={() => handleServiceCardClick('LAN')}
-                    className="w-full bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all duration-200 text-left"
-                  >
-                    <p className="text-xs font-medium text-emerald-100">LAN Services</p>
-                    <p className="text-2xl font-bold mt-1">{serviceStats.lanServices}</p>
-                  </button>
-                  <button
-                    onClick={() => handleServiceCardClick('WAN')}
-                    className="w-full bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all duration-200 text-left"
-                  >
-                    <p className="text-xs font-medium text-emerald-100">WAN Services</p>
-                    <p className="text-2xl font-bold mt-1">{serviceStats.wanServices}</p>
-                  </button>
+                {/* 1G Ports */}
+                <div 
+                  onClick={() => handleServiceCardClick('1G')}
+                  className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <p className="text-sm font-medium opacity-90">1G Ports</p>
+                      <p className="text-4xl font-bold mt-2">
+                        {statistics.port_type_counts?.['1G'] || 0}
+                      </p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* LAN Services */}
+                <div 
+                  onClick={() => handleServiceCardClick('LAN')}
+                  className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <p className="text-sm font-medium opacity-90">LAN Services</p>
+                      <p className="text-4xl font-bold mt-2">
+                        {statistics.lan_count || 0}
+                      </p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+
+                {/* WAN Services */}
+                <div 
+                  onClick={() => handleServiceCardClick('WAN')}
+                  className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <div className="flex items-center justify-between text-white">
+                    <div>
+                      <p className="text-sm font-medium opacity-90">WAN Services</p>
+                      <p className="text-4xl font-bold mt-2">
+                        {statistics.wan_count || 0}
+                      </p>
+                    </div>
+                    <div className="bg-white bg-opacity-20 p-3 rounded-lg">
+                      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                All Cards ({cards.length})
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {cards.map((card) => (
                 <div
                   key={card.id}
@@ -415,7 +420,7 @@ export default function NokiaOTNDashboard() {
                           <h3 className="text-lg font-bold text-gray-900">
                             Card {card.card_number}
                           </h3>
-                          <p className="text-sm text-gray-500">{card.card_type}</p>
+                          <p className="text-sm text-gray-500">{card.card_model}</p>
                         </div>
                       </div>
                       <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
@@ -446,6 +451,7 @@ export default function NokiaOTNDashboard() {
                 </div>
               ))}
             </div>
+          </div>
           </>
         ) : (
           // Port Details View
@@ -464,7 +470,7 @@ export default function NokiaOTNDashboard() {
                       {selectedCard.card_number === 'ALL' ? 'All Cards' : `Card ${selectedCard.card_number}`}
                     </h2>
                     <p className="text-sm text-gray-600">
-                      {serviceFilter ? `Showing ${serviceFilter} services` : selectedCard.card_type}
+                      {serviceFilter ? `Showing ${serviceFilter} services` : selectedCard.card_model}
                     </p>
                   </div>
                 </div>
@@ -536,19 +542,25 @@ export default function NokiaOTNDashboard() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Port
+                        Sr. No.
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Port Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Source Port No.
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Destination Location
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Dest Port No.
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Service Name
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Service Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Destination
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Remarks
@@ -564,7 +576,7 @@ export default function NokiaOTNDashboard() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className={`w-2 h-2 rounded-full mr-2 ${port.service_name ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                            <span className="text-sm font-medium text-gray-900">{port.port_number}</span>
+                            <span className="text-sm font-medium text-gray-900">{port.sr_no}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -575,6 +587,15 @@ export default function NokiaOTNDashboard() {
                           }`}>
                             {port.port_type}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-mono text-gray-900">{port.source_port_no || '-'}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{port.destination_location || '-'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-mono text-gray-900">{port.destination_port_no || '-'}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-900">{port.service_name || '-'}</div>
@@ -589,9 +610,6 @@ export default function NokiaOTNDashboard() {
                           ) : (
                             <span className="text-sm text-gray-400">-</span>
                           )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">{port.destination || '-'}</div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="text-sm text-gray-600 max-w-xs break-words whitespace-normal">
@@ -619,7 +637,7 @@ export default function NokiaOTNDashboard() {
                   </svg>
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No ports found</h3>
                   <p className="mt-1 text-sm text-gray-500">
-                    {searchTerm || filterDestination || filterServiceType || serviceFilter
+                    {searchTerm || filterDestination || filterServiceType
                       ? 'Try adjusting your filters'
                       : 'No ports available for this card'}
                   </p>
@@ -638,7 +656,7 @@ export default function NokiaOTNDashboard() {
             setEditModalOpen(false);
             setSelectedPort(null);
           }}
-          onSave={handleSavePort}
+          onUpdate={handlePortUpdated}
         />
       )}
     </div>
