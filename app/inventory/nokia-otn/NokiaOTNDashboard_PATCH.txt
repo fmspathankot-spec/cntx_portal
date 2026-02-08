@@ -1,0 +1,27 @@
+PATCH FOR: app/inventory/nokia-otn/NokiaOTNDashboard.js
+
+ISSUE: When service cards are clicked, selectedCard is set to { card_number: 'ALL' }
+This triggers useEffect which calls fetchPorts('ALL'), causing 404 error.
+
+FIX: Update useEffect on lines 30-34
+
+BEFORE:
+  // Fetch ports when card selected
+  useEffect(() => {
+    if (selectedCard) {
+      fetchPorts(selectedCard.card_number);
+    }
+  }, [selectedCard, searchTerm, filterDestination, filterServiceType]);
+
+AFTER:
+  // Fetch ports when card selected (but not for 'ALL' - that's handled by service filter)
+  useEffect(() => {
+    if (selectedCard && selectedCard.card_number !== 'ALL') {
+      fetchPorts(selectedCard.card_number);
+    }
+  }, [selectedCard, searchTerm, filterDestination, filterServiceType]);
+
+EXPLANATION:
+- When service cards are clicked, handleServiceCardClick sets selectedCard to 'ALL'
+- This should NOT trigger fetchPorts because data is already fetched by fetchAllPortsWithFilter
+- Adding condition `selectedCard.card_number !== 'ALL'` prevents the 404 error
