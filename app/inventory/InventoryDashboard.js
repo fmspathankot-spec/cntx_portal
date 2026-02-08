@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import SiteCard from './components/SiteCard';
 import RouteTable from './components/RouteTable';
 import SearchBar from './components/SearchBar';
@@ -143,6 +144,66 @@ export default function InventoryDashboard() {
           totalDistance={totalDistance}
           avgDistance={avgDistance}
         />
+
+        {/* Quick Access Cards - Nokia OTN & PKT Node */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            🔧 Equipment Inventory
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Nokia OTN Card */}
+            <Link href="/inventory/nokia-otn">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-200 hover:scale-105 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-white p-3 rounded-lg">
+                      <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        Nokia OTN Inventory
+                      </h3>
+                      <p className="text-blue-100 text-sm mt-1">
+                        20AX200 & 20MX80 Cards Management
+                      </p>
+                    </div>
+                  </div>
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+
+            {/* PKT Node Card */}
+            <Link href="/inventory/pkt-node">
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-200 hover:scale-105 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-white p-3 rounded-lg">
+                      <svg className="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">
+                        PKT Node Inventory
+                      </h3>
+                      <p className="text-purple-100 text-sm mt-1">
+                        Network Node Port Management
+                      </p>
+                    </div>
+                  </div>
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
+            </Link>
+          </div>
+        </div>
 
         {/* Search Bar */}
         <div className="mb-6">
