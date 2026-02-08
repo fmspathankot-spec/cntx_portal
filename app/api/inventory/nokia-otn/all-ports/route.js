@@ -25,10 +25,8 @@ export async function GET(request) {
     
     let query = `
       SELECT 
-        p.*,
-        c.card_number
+        p.*
       FROM nokia_otn_ports p
-      JOIN nokia_otn_cards c ON p.card_id = c.id
       WHERE 1=1
     `;
     
@@ -57,7 +55,7 @@ export async function GET(request) {
       paramCount++;
     }
     
-    query += ` ORDER BY c.card_number, p.port_number`;
+    query += ` ORDER BY p.card_number, p.sr_no`;
     
     console.log('[All Ports API] Final Query:', query);
     console.log('[All Ports API] Query Params:', params);
