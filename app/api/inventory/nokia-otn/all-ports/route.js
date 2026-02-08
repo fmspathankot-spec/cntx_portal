@@ -21,6 +21,8 @@ export async function GET(request) {
     const portType = searchParams.get('portType');
     const serviceType = searchParams.get('serviceType');
     
+    console.log('[All Ports API] Filters:', { hasService, portType, serviceType });
+    
     let query = `
       SELECT 
         p.*,
@@ -36,13 +38,15 @@ export async function GET(request) {
     
     // Filter by ports with services
     if (hasService === 'true') {
-      query += ` AND p.service_name IS NOT NULL AND p.service_name != ''`;
+      query += ` AND (p.service_name IS NOT NULL AND p.service_name != '')`;
+      console.log('[All Ports API] Adding hasService filter');
     }
     
     // Filter by port type (10G, 2.5G, 1G)
     if (portType) {
       query += ` AND p.port_type = $${paramCount}`;
       params.push(portType);
+      console.log('[All Ports API] Adding portType filter:', portType);
       paramCount++;
     }
     
@@ -50,12 +54,18 @@ export async function GET(request) {
     if (serviceType) {
       query += ` AND p.service_type = $${paramCount}`;
       params.push(serviceType);
+      console.log('[All Ports API] Adding serviceType filter:', serviceType);
       paramCount++;
     }
     
     query += ` ORDER BY c.card_number, p.port_number`;
     
+    console.log('[All Ports API] Final Query:', query);
+    console.log('[All Ports API] Query Params:', params);
+    
     const result = await pool.query(query, params);
+    
+    console.log('[All Ports API] Results found:', result.rows.length);
     
     return NextResponse.json({
       success: true,
@@ -69,7 +79,7 @@ export async function GET(request) {
     });
     
   } catch (error) {
-    console.error('Error fetching all ports:', error);
+    console.error('[All Ports API] Error:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 500 }
