@@ -1,0 +1,78 @@
+/**
+ * Nokia OTN All Ports API
+ * GET /api/inventory/nokia-otn/all-ports - Get all ports across all cards with filters
+ */
+
+import { NextResponse } from 'next/server';
+import { Pool } from 'pg';
+
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+});
+
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const hasService = searchParams.get('hasService');
+    const portType = searchParams.get('portType');
+    const serviceType = searchParams.get('serviceType');
+    
+    let query = `
+      SELECT 
+        p.*,
+        c.card_number,
+        c.card_type
+      FROM nokia_otn_ports p
+      JOIN nokia_otn_cards c ON p.card_id = c.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    let paramCount = 1;
+    
+    // Filter by ports with services
+    if (hasService === 'true') {
+      query += ` AND p.service_name IS NOT NULL AND p.service_name != ''`;
+    }
+    
+    // Filter by port type (10G, 2.5G, 1G)
+    if (portType) {
+      query += ` AND p.port_type = $${paramCount}`;
+      params.push(portType);
+      paramCount++;
+    }
+    
+    // Filter by service type (LAN, WAN)
+    if (serviceType) {
+      query += ` AND p.service_type = $${paramCount}`;
+      params.push(serviceType);
+      paramCount++;
+    }
+    
+    query += ` ORDER BY c.card_number, p.port_number`;
+    
+    const result = await pool.query(query, params);
+    
+    return NextResponse.json({
+      success: true,
+      ports: result.rows,
+      count: result.rows.length,
+      filters: {
+        hasService,
+        portType,
+        serviceType
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching all ports:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
