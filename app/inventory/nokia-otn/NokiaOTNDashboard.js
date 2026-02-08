@@ -14,6 +14,9 @@ export default function NokiaOTNDashboard() {
   const [filterDestination, setFilterDestination] = useState('');
   const [filterServiceType, setFilterServiceType] = useState('');
   
+  // Service filter state
+  const [serviceFilter, setServiceFilter] = useState(null); // 'all', '10G', '2.5G', '1G', 'LAN', 'WAN'
+  
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedPort, setSelectedPort] = useState(null);
@@ -85,6 +88,7 @@ export default function NokiaOTNDashboard() {
     setSearchTerm('');
     setFilterDestination('');
     setFilterServiceType('');
+    setServiceFilter(null);
   };
 
   const handleBackToCards = () => {
@@ -93,6 +97,7 @@ export default function NokiaOTNDashboard() {
     setSearchTerm('');
     setFilterDestination('');
     setFilterServiceType('');
+    setServiceFilter(null);
   };
 
   const handleEditPort = (port) => {
@@ -109,6 +114,47 @@ export default function NokiaOTNDashboard() {
     
     // Show success message
     alert('Port updated successfully!');
+  };
+
+  // Handle service card click - show all ports with that service type
+  const handleServiceCardClick = (filterType) => {
+    setServiceFilter(filterType);
+    // Don't select any specific card, show all ports matching filter
+    setSelectedCard({ card_number: 'ALL', card_type: 'All Cards' });
+    fetchAllPortsWithFilter(filterType);
+  };
+
+  const fetchAllPortsWithFilter = async (filterType) => {
+    try {
+      let url = '/api/inventory/nokia-otn/all-ports';
+      
+      // Add filter based on type
+      const params = new URLSearchParams();
+      
+      if (filterType === 'all') {
+        params.append('hasService', 'true');
+      } else if (filterType === '10G' || filterType === '2.5G' || filterType === '1G') {
+        params.append('portType', filterType);
+        params.append('hasService', 'true');
+      } else if (filterType === 'LAN') {
+        params.append('serviceType', 'LAN');
+      } else if (filterType === 'WAN') {
+        params.append('serviceType', 'WAN');
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      if (data.success) {
+        setPorts(data.ports);
+      }
+    } catch (error) {
+      console.error('Error fetching filtered ports:', error);
+    }
   };
 
   // Calculate service statistics from all cards
@@ -250,14 +296,18 @@ export default function NokiaOTNDashboard() {
               </div>
             </div>
 
-            {/* Statistics Row 2 - Service Stats */}
+            {/* Statistics Row 2 - Service Stats (CLICKABLE) */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white">
+              {/* Live Services Card - Clickable */}
+              <button
+                onClick={() => handleServiceCardClick('all')}
+                className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-indigo-100">Live Services</p>
                     <p className="text-3xl font-bold mt-2">{serviceStats.totalServices}</p>
-                    <p className="text-xs text-indigo-200 mt-1">Active Connections</p>
+                    <p className="text-xs text-indigo-200 mt-1">Click to view all</p>
                   </div>
                   <div className="bg-white/20 p-3 rounded-lg">
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -265,14 +315,18 @@ export default function NokiaOTNDashboard() {
                     </svg>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+              {/* 10G Ports Card - Clickable */}
+              <button
+                onClick={() => handleServiceCardClick('10G')}
+                className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-blue-100">10G Ports</p>
                     <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['10G'] || 0}</p>
-                    <p className="text-xs text-blue-200 mt-1">High Speed</p>
+                    <p className="text-xs text-blue-200 mt-1">Click to view</p>
                   </div>
                   <div className="bg-white/20 p-3 rounded-lg">
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -280,14 +334,18 @@ export default function NokiaOTNDashboard() {
                     </svg>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg shadow-lg p-6 text-white">
+              {/* 2.5G Ports Card - Clickable */}
+              <button
+                onClick={() => handleServiceCardClick('2.5G')}
+                className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-cyan-100">2.5G Ports</p>
                     <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['2.5G'] || 0}</p>
-                    <p className="text-xs text-cyan-200 mt-1">Medium Speed</p>
+                    <p className="text-xs text-cyan-200 mt-1">Click to view</p>
                   </div>
                   <div className="bg-white/20 p-3 rounded-lg">
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -295,14 +353,18 @@ export default function NokiaOTNDashboard() {
                     </svg>
                   </div>
                 </div>
-              </div>
+              </button>
 
-              <div className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg shadow-lg p-6 text-white">
+              {/* 1G Ports Card - Clickable */}
+              <button
+                onClick={() => handleServiceCardClick('1G')}
+                className="bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg shadow-lg p-6 text-white hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-left"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-teal-100">1G Ports</p>
                     <p className="text-3xl font-bold mt-2">{serviceStats.portTypes['1G'] || 0}</p>
-                    <p className="text-xs text-teal-200 mt-1">Standard Speed</p>
+                    <p className="text-xs text-teal-200 mt-1">Click to view</p>
                   </div>
                   <div className="bg-white/20 p-3 rounded-lg">
                     <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -310,175 +372,162 @@ export default function NokiaOTNDashboard() {
                     </svg>
                   </div>
                 </div>
-              </div>
+              </button>
 
+              {/* LAN/WAN Combined Card - Clickable */}
               <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg shadow-lg p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-emerald-100">Other Ports</p>
-                    <p className="text-3xl font-bold mt-2">
-                      {Object.entries(serviceStats.portTypes)
-                        .filter(([key]) => !['10G', '2.5G', '1G'].includes(key))
-                        .reduce((sum, [, value]) => sum + value, 0)}
-                    </p>
-                    <p className="text-xs text-emerald-200 mt-1">Mixed Types</p>
-                  </div>
-                  <div className="bg-white/20 p-3 rounded-lg">
-                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
-                    </svg>
-                  </div>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => handleServiceCardClick('LAN')}
+                    className="w-full bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all duration-200 text-left"
+                  >
+                    <p className="text-xs font-medium text-emerald-100">LAN Services</p>
+                    <p className="text-2xl font-bold mt-1">{serviceStats.lanServices}</p>
+                  </button>
+                  <button
+                    onClick={() => handleServiceCardClick('WAN')}
+                    className="w-full bg-white/20 hover:bg-white/30 rounded-lg p-3 transition-all duration-200 text-left"
+                  >
+                    <p className="text-xs font-medium text-emerald-100">WAN Services</p>
+                    <p className="text-2xl font-bold mt-1">{serviceStats.wanServices}</p>
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Cards Grid */}
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                All Cards ({cards.length})
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {cards.map((card) => {
-                const utilization = ((card.used_ports / card.total_ports) * 100).toFixed(0);
-                
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => handleCardClick(card)}
-                    className="bg-white rounded-lg shadow hover:shadow-xl transition-all cursor-pointer border-2 border-transparent hover:border-blue-500"
-                  >
-                    <div className="p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-gray-900">{card.card_number}</h3>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full">
-                          {card.card_model}
-                        </span>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Total Ports:</span>
-                          <span className="font-semibold text-gray-900">{card.total_ports}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {cards.map((card) => (
+                <div
+                  key={card.id}
+                  onClick={() => handleCardClick(card)}
+                  className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-500"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="bg-blue-100 p-2 rounded-lg">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                          </svg>
                         </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Used:</span>
-                          <span className="font-semibold text-green-600">{card.used_ports}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Free:</span>
-                          <span className="font-semibold text-orange-600">{card.free_ports}</span>
-                        </div>
-
-                        {/* Utilization Bar */}
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                            <span>Utilization</span>
-                            <span className="font-semibold">{utilization}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full transition-all ${
-                                utilization > 75 ? 'bg-red-500' :
-                                utilization > 50 ? 'bg-yellow-500' :
-                                'bg-green-500'
-                              }`}
-                              style={{ width: `${utilization}%` }}
-                            ></div>
-                          </div>
+                        <div>
+                          <h3 className="text-lg font-bold text-gray-900">
+                            Card {card.card_number}
+                          </h3>
+                          <p className="text-sm text-gray-500">{card.card_type}</p>
                         </div>
                       </div>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        {card.total_ports} ports
+                      </span>
+                    </div>
 
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span>📍 {card.location}</span>
-                          <span className="flex items-center">
-                            <div className="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                            {card.status}
-                          </span>
-                        </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Used Ports</span>
+                        <span className="text-sm font-semibold text-green-600">{card.used_ports}</span>
                       </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Free Ports</span>
+                        <span className="text-sm font-semibold text-orange-600">{card.free_ports}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-3">
+                        <div
+                          className="bg-green-600 h-2 rounded-full transition-all"
+                          style={{ width: `${(card.used_ports / card.total_ports) * 100}%` }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-gray-500 text-center mt-1">
+                        {((card.used_ports / card.total_ports) * 100).toFixed(1)}% utilized
+                      </p>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </>
         ) : (
           // Port Details View
-          <>
-            {/* Card Info Header */}
+          <div>
+            {/* Card Header */}
             <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedCard.card_number}</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {selectedCard.card_model} • {selectedCard.port_type} • {selectedCard.location}
+                <div className="flex items-center space-x-4">
+                  <div className="bg-blue-100 p-3 rounded-lg">
+                    <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {selectedCard.card_number === 'ALL' ? 'All Cards' : `Card ${selectedCard.card_number}`}
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      {serviceFilter ? `Showing ${serviceFilter} services` : selectedCard.card_type}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-blue-600">{ports.length}</p>
+                  <p className="text-sm text-gray-600">
+                    {serviceFilter ? 'Filtered Ports' : 'Total Ports'}
                   </p>
                 </div>
-                <div className="flex items-center space-x-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-gray-900">{selectedCard.total_ports}</div>
-                    <div className="text-sm text-gray-600">Total Ports</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600">{selectedCard.used_ports}</div>
-                    <div className="text-sm text-gray-600">Used</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-orange-600">{selectedCard.free_ports}</div>
-                    <div className="text-sm text-gray-600">Free</div>
-                  </div>
-                </div>
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white rounded-lg shadow p-4 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search service, location, remarks..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Destination</label>
-                  <select
-                    value={filterDestination}
-                    onChange={(e) => setFilterDestination(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">All Destinations</option>
-                    {filters.destinations?.map((dest) => (
-                      <option key={dest} value={dest}>{dest}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Service Type</label>
-                  <select
-                    value={filterServiceType}
-                    onChange={(e) => setFilterServiceType(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">All Types</option>
-                    {filters.serviceTypes?.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
+            {/* Search and Filters */}
+            {!serviceFilter && (
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Search
+                    </label>
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search by service name, port..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Destination
+                    </label>
+                    <select
+                      value={filterDestination}
+                      onChange={(e) => setFilterDestination(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">All Destinations</option>
+                      {filters.destinations?.map((dest) => (
+                        <option key={dest} value={dest}>{dest}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Service Type
+                    </label>
+                    <select
+                      value={filterServiceType}
+                      onChange={(e) => setFilterServiceType(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">All Types</option>
+                      {filters.serviceTypes?.map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Ports Table */}
             <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -486,47 +535,54 @@ export default function NokiaOTNDashboard() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Port</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Source</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Destination</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dest. Port</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">Remarks</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Port
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Port Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Service Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Service Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Destination
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Remarks
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {ports.map((port) => (
-                      <tr 
-                        key={port.id}
-                        className={`hover:bg-gray-50 ${!port.destination_location ? 'bg-gray-50' : ''}`}
-                      >
+                      <tr key={port.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className={`w-2 h-2 rounded-full mr-2 ${port.destination_location ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                            <span className="text-sm font-medium text-gray-900">{port.sr_no}</span>
+                            <div className={`w-2 h-2 rounded-full mr-2 ${port.service_name ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                            <span className="text-sm font-medium text-gray-900">{port.port_number}</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{port.source_port_no}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          {port.destination_location ? (
-                            <span className="text-sm font-medium text-blue-600">{port.destination_location}</span>
-                          ) : (
-                            <span className="text-sm text-gray-400">-</span>
-                          )}
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            port.port_type === '10G' ? 'bg-blue-100 text-blue-800' :
+                            port.port_type === '2.5G' ? 'bg-cyan-100 text-cyan-800' :
+                            'bg-teal-100 text-teal-800'
+                          }`}>
+                            {port.port_type}
+                          </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {port.destination_port_no || '-'}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
-                          {port.service_name || '-'}
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{port.service_name || '-'}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {port.service_type ? (
-                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                              port.service_type === 'LAN' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              port.service_type === 'LAN' ? 'bg-green-100 text-green-800' : 'bg-purple-100 text-purple-800'
                             }`}>
                               {port.service_type}
                             </span>
@@ -534,27 +590,20 @@ export default function NokiaOTNDashboard() {
                             <span className="text-sm text-gray-400">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600 max-w-xs">
-                          <div className="break-words whitespace-normal">
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">{port.destination || '-'}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-600 max-w-xs break-words whitespace-normal">
                             {port.remarks || '-'}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                            port.destination_location ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {port.destination_location ? 'In Use' : 'Free'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => handleEditPort(port)}
-                            className="text-blue-600 hover:text-blue-900 font-medium flex items-center space-x-1"
+                            className="text-blue-600 hover:text-blue-900"
                           >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            <span>Edit</span>
+                            Edit
                           </button>
                         </td>
                       </tr>
@@ -562,21 +611,36 @@ export default function NokiaOTNDashboard() {
                   </tbody>
                 </table>
               </div>
+              
+              {ports.length === 0 && (
+                <div className="text-center py-12">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No ports found</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {searchTerm || filterDestination || filterServiceType || serviceFilter
+                      ? 'Try adjusting your filters'
+                      : 'No ports available for this card'}
+                  </p>
+                </div>
+              )}
             </div>
-          </>
+          </div>
         )}
       </div>
 
       {/* Edit Modal */}
-      <PortEditModal
-        port={selectedPort}
-        isOpen={editModalOpen}
-        onClose={() => {
-          setEditModalOpen(false);
-          setSelectedPort(null);
-        }}
-        onSave={handleSavePort}
-      />
+      {editModalOpen && selectedPort && (
+        <PortEditModal
+          port={selectedPort}
+          onClose={() => {
+            setEditModalOpen(false);
+            setSelectedPort(null);
+          }}
+          onSave={handleSavePort}
+        />
+      )}
     </div>
   );
 }
