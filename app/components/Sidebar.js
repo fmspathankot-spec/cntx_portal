@@ -61,6 +61,7 @@ const Sidebar = () => {
       icon: FaBoxes,
       submenu: [
         { name: "Nokia OTN", href: "/inventory/nokia-otn" },
+        { name: "AFNET", href: "/inventory/afnet" },
         { name: "PKT Node (Maan)", href: "/inventory/pkt-node" },
         { name: "RFTS Sites", href: "/inventory" },
       ],
