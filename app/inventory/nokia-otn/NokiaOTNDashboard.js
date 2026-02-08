@@ -571,12 +571,12 @@ export default function NokiaOTNDashboard() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {ports.map((port) => (
+                    {ports.map((port, index) => (
                       <tr key={port.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className={`w-2 h-2 rounded-full mr-2 ${port.service_name ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                            <span className="text-sm font-medium text-gray-900">{port.sr_no}</span>
+                            <span className="text-sm font-medium text-gray-900">{index + 1}</span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -662,3 +662,4 @@ export default function NokiaOTNDashboard() {
     </div>
   );
 }
+
