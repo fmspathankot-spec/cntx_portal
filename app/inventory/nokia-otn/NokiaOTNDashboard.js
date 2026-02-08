@@ -29,8 +29,8 @@ export default function NokiaOTNDashboard() {
 
   // Fetch ports when card selected
   useEffect(() => {
-    if (selectedCard) {
-      fetchPorts(selectedCard.card_number);
+      if (selectedCard && selectedCard.card_number !== 'ALL') {
+          fetchPorts(selectedCard.card_number);
     }
   }, [selectedCard, searchTerm, filterDestination, filterServiceType]);
 
