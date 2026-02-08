@@ -26,8 +26,7 @@ export async function GET(request) {
     let query = `
       SELECT 
         p.*,
-        c.card_number,
-        c.card_type
+        c.card_number
       FROM nokia_otn_ports p
       JOIN nokia_otn_cards c ON p.card_id = c.id
       WHERE 1=1
